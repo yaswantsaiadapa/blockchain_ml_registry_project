@@ -1,14 +1,12 @@
-import hashlib
-import json
 import time
 from hash_utils import hash_dict
 
 
 class Block:
-    def __init__(self, index, data, previous_hash="0"):
+    def __init__(self, index, data, previous_hash="0", timestamp=None):
         self.index = index
-        self.timestamp = time.time()
-        self.data = data          # dict: username, model_name, accuracy, model_hash, filepath
+        self.timestamp = timestamp if timestamp is not None else time.time()
+        self.data = data
         self.previous_hash = previous_hash
         self.hash = self._compute_hash()
 
@@ -34,16 +32,25 @@ class Block:
 class Blockchain:
     def __init__(self):
         self.chain = []
-        self._create_genesis_block()
 
-    def _create_genesis_block(self):
-        genesis = Block(0, {"info": "Genesis Block"}, "0")
-        self.chain.append(genesis)
+    def load_from_db(self, block_rows: list):
+        """Reconstruct chain from DB rows (already ordered by block_index)."""
+        self.chain = []
+        for row in block_rows:
+            b = Block(
+                index=row["block_index"],
+                data=row["data"],
+                previous_hash=row["previous_hash"],
+                timestamp=row["timestamp"],
+            )
+            # Use the stored hash (don't recompute — trust the DB)
+            b.hash = row["block_hash"]
+            self.chain.append(b)
 
     def get_latest_block(self):
         return self.chain[-1]
 
-    def add_block(self, data: dict):
+    def add_block(self, data: dict) -> "Block":
         new_block = Block(
             index=len(self.chain),
             data=data,

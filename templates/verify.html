@@ -1,106 +1,54 @@
 {% extends "base.html" %}
-{% block title %}ChainML — Verify Model{% endblock %}
+{% block title %}ChainML — Verify | {{ project.name }}{% endblock %}
+
+{% block subnav %}
+<div class="subnav">
+  <div class="subnav-project">PROJECT / <span>{{ project.name }}</span></div>
+  <a href="/project/{{ project.id }}">Overview</a>
+  <a href="/project/{{ project.id }}/train">Train</a>
+  <a href="/project/{{ project.id }}/chain">Chain</a>
+  <a href="/project/{{ project.id }}/verify" class="active">Verify</a>
+  <a href="/project/{{ project.id }}/best">Best</a>
+</div>
+{% endblock %}
+
 {% block content %}
-
 <style>
-  .verify-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    align-items: start;
-  }
-  @media (max-width: 700px) { .verify-layout { grid-template-columns: 1fr; } }
+  .verify-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+  @media(max-width:680px){ .verify-layout{grid-template-columns:1fr} }
 
-  .result-valid, .result-tampered {
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
-    animation: pulse-in 0.4s ease;
-  }
-  @keyframes pulse-in {
-    from { opacity:0; transform: scale(0.95); }
-    to { opacity:1; transform: scale(1); }
-  }
-  .result-valid {
-    background: rgba(16,185,129,0.08);
-    border: 2px solid var(--accent3);
-  }
-  .result-tampered {
-    background: rgba(244,63,94,0.08);
-    border: 2px solid var(--danger);
-  }
-
-  .verdict-icon { font-size: 4rem; display: block; margin-bottom: 1rem; }
-  .verdict-text {
-    font-family: var(--mono);
-    font-size: 1.1rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-  }
+  .result-valid,.result-tampered { border-radius: 12px; padding: 2rem; text-align: center; animation: popIn 0.35s ease; }
+  @keyframes popIn { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
+  .result-valid { background: rgba(16,185,129,0.07); border: 2px solid var(--accent3); }
+  .result-tampered { background: rgba(244,63,94,0.07); border: 2px solid var(--danger); }
+  .verdict-icon { font-size: 3.5rem; display: block; margin-bottom: 0.8rem; }
+  .verdict-text { font-family: var(--mono); font-size: 1rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.6rem; }
   .result-valid .verdict-text { color: var(--accent3); }
   .result-tampered .verdict-text { color: var(--danger); }
 
-  .meta-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-    margin-top: 1.5rem;
-    text-align: left;
-  }
-  .meta-item {
-    background: rgba(0,0,0,0.2);
-    border-radius: 6px;
-    padding: 0.7rem;
-  }
-  .meta-item .mk { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
-  .meta-item .mv { font-size: 0.85rem; color: var(--text); margin-top: 0.2rem; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; margin-top: 1.2rem; text-align: left; }
+  .meta-item { background: rgba(0,0,0,0.2); border-radius: 6px; padding: 0.6rem 0.8rem; }
+  .meta-item .mk { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .meta-item .mv { font-size: 0.83rem; color: var(--text); margin-top: 0.15rem; }
 
-  .how-it-works {
-    margin-top: 2rem;
-  }
-  .how-it-works h3 {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 1rem;
-  }
-  .step-item {
-    display: flex;
-    gap: 0.8rem;
-    padding: 0.8rem 0;
-    border-bottom: 1px solid var(--border);
-    align-items: flex-start;
-  }
-  .step-item:last-child { border-bottom: none; }
-  .step-num {
-    width: 24px; height: 24px;
-    background: rgba(0,229,255,0.1);
-    border: 1px solid rgba(0,229,255,0.2);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    color: var(--accent);
-    flex-shrink: 0;
-  }
-  .step-text { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
-  .step-text strong { color: var(--text); }
+  .how-list { margin-top: 1.5rem; }
+  .how-list h3 { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.8rem; }
+  .how-step { display: flex; gap: 0.7rem; padding: 0.65rem 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .how-step:last-child { border-bottom: none; }
+  .sn { width: 22px; height: 22px; background: rgba(0,229,255,0.08); border: 1px solid rgba(0,229,255,0.18); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 0.62rem; color: var(--accent); flex-shrink: 0; }
+  .st { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+  .st strong { color: var(--text); }
+
+  .hash-label { font-family: var(--mono); font-size: 0.62px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-top: 0.8rem; margin-bottom: 0.3rem; font-size: 0.62rem; }
 </style>
 
 <div class="page-header">
-  <div class="eyebrow">⟡ Integrity Check</div>
+  <div class="eyebrow">⟡ {{ project.name }}</div>
   <h1>Verify Model</h1>
-  <p>Recompute a model's SHA-256 hash and check it against the blockchain ledger.</p>
+  <p>Recompute a model's SHA-256 hash and check it against this project's blockchain.</p>
 </div>
 
 <div class="verify-layout">
-  <!-- FORM -->
   <div class="card">
     <form method="POST">
       <div class="form-group">
@@ -109,99 +57,60 @@
         <select class="input" name="filepath">
           <option value="">— choose a model —</option>
           {% for m in models %}
-          <option value="{{ m.path }}" {% if request.form.get('filepath') == m.path %}selected{% endif %}>
-            {{ m.name }}
-          </option>
+          <option value="{{ m.path }}" {% if request.form.get('filepath') == m.path %}selected{% endif %}>{{ m.name }}</option>
           {% endfor %}
         </select>
         {% else %}
-        <div style="padding:1rem; border:1px dashed var(--border); border-radius:6px; color:var(--muted); font-size:0.85rem; text-align:center;">
-          No model files found. <a href="/train" style="color:var(--accent)">Train a model first.</a>
+        <div style="padding:1rem;border:1px dashed var(--border);border-radius:6px;color:var(--muted);font-size:0.83rem;text-align:center;">
+          No model files found. <a href="/project/{{ project.id }}/train" style="color:var(--accent)">Train a model first.</a>
         </div>
         {% endif %}
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" {% if not models %}disabled{% endif %}>
-        🔍 Verify Integrity
-      </button>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" {% if not models %}disabled{% endif %}>🔍 Verify Integrity</button>
     </form>
 
-    <div class="how-it-works">
-      <h3>How Verification Works</h3>
-      <div class="step-item">
-        <div class="step-num">1</div>
-        <div class="step-text"><strong>Load model file</strong> — read the .pkl binary</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">2</div>
-        <div class="step-text"><strong>Hash it</strong> — compute fresh SHA-256 fingerprint</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">3</div>
-        <div class="step-text"><strong>Compare</strong> — search blockchain for matching hash</div>
-      </div>
-      <div class="step-item">
-        <div class="step-num">4</div>
-        <div class="step-text"><strong>Verdict</strong> — valid if found, tampered if not</div>
-      </div>
+    <div class="how-list">
+      <h3>How It Works</h3>
+      <div class="how-step"><div class="sn">1</div><div class="st"><strong>Load .pkl file</strong> from disk</div></div>
+      <div class="how-step"><div class="sn">2</div><div class="st"><strong>Recompute SHA-256</strong> hash of file bytes</div></div>
+      <div class="how-step"><div class="sn">3</div><div class="st"><strong>Load blockchain</strong> from SQLite DB</div></div>
+      <div class="how-step"><div class="sn">4</div><div class="st"><strong>Compare</strong> — valid if hash found in chain</div></div>
     </div>
   </div>
 
-  <!-- RESULT -->
   <div>
     {% if result %}
       {% if result.status == 'valid' %}
       <div class="result-valid">
         <span class="verdict-icon">✅</span>
         <div class="verdict-text">Model Valid</div>
-        <p style="color:var(--muted); font-size:0.85rem;">Hash matched — this model is untampered and on-chain.</p>
+        <p style="color:var(--muted);font-size:0.83rem;">Hash matches blockchain — untampered.</p>
         <div class="meta-grid">
-          <div class="meta-item">
-            <div class="mk">User</div>
-            <div class="mv">{{ result.username }}</div>
-          </div>
-          <div class="meta-item">
-            <div class="mk">Model</div>
-            <div class="mv">{{ result.model_name }}</div>
-          </div>
-          <div class="meta-item">
-            <div class="mk">Accuracy</div>
-            <div class="mv" style="color:var(--accent3)">{{ result.accuracy }}</div>
-          </div>
-          <div class="meta-item">
-            <div class="mk">Block</div>
-            <div class="mv">#{{ result.block_index }}</div>
-          </div>
+          <div class="meta-item"><div class="mk">User</div><div class="mv">{{ result.username }}</div></div>
+          <div class="meta-item"><div class="mk">Model</div><div class="mv">{{ result.model_name }}</div></div>
+          <div class="meta-item"><div class="mk">Accuracy</div><div class="mv" style="color:var(--accent3)">{{ result.accuracy }}</div></div>
+          <div class="meta-item"><div class="mk">Block</div><div class="mv">#{{ result.block_index }}</div></div>
         </div>
-        <div style="margin-top:1rem">
-          <div style="font-family:var(--mono);font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;text-align:left;">Verified Hash</div>
-          <div class="hash">{{ result.hash }}</div>
-        </div>
+        <div class="hash-label" style="text-align:left">Verified Hash</div>
+        <div class="hash">{{ result.hash }}</div>
       </div>
-
       {% elif result.status == 'tampered' %}
       <div class="result-tampered">
         <span class="verdict-icon">⚠️</span>
         <div class="verdict-text">Tampered!</div>
-        <p style="color:var(--muted); font-size:0.85rem;">Hash not found in blockchain. This model may have been modified.</p>
-        <div style="margin-top:1rem">
-          <div style="font-family:var(--mono);font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;text-align:left;">Computed Hash (Not in Chain)</div>
-          <div class="hash">{{ result.hash }}</div>
-        </div>
+        <p style="color:var(--muted);font-size:0.83rem;">Hash not found in this project's blockchain.</p>
+        <div class="hash-label" style="text-align:left;margin-top:1rem;">Computed Hash (not in chain)</div>
+        <div class="hash">{{ result.hash }}</div>
       </div>
-
       {% elif result.status == 'error' %}
       <div class="alert alert-error">{{ result.message }}</div>
       {% endif %}
-
     {% else %}
-    <div class="card" style="border-style:dashed; text-align:center; padding:3rem 2rem;">
-      <div style="font-size:3rem; margin-bottom:1rem;">🔐</div>
-      <p style="color:var(--muted); font-size:0.85rem; line-height:1.6;">
-        Select a model file to check its integrity against the blockchain ledger.
-      </p>
+    <div class="card" style="border-style:dashed;text-align:center;padding:3rem 1.5rem;">
+      <div style="font-size:2.5rem;margin-bottom:0.8rem;">🔐</div>
+      <p style="color:var(--muted);font-size:0.83rem;line-height:1.6;">Select a model to check its integrity against this project's chain.</p>
     </div>
     {% endif %}
   </div>
 </div>
-
 {% endblock %}

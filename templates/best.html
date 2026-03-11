@@ -1,193 +1,90 @@
 {% extends "base.html" %}
-{% block title %}ChainML — Best Model{% endblock %}
+{% block title %}ChainML — Best | {{ project.name }}{% endblock %}
+
+{% block subnav %}
+<div class="subnav">
+  <div class="subnav-project">PROJECT / <span>{{ project.name }}</span></div>
+  <a href="/project/{{ project.id }}">Overview</a>
+  <a href="/project/{{ project.id }}/train">Train</a>
+  <a href="/project/{{ project.id }}/chain">Chain</a>
+  <a href="/project/{{ project.id }}/verify">Verify</a>
+  <a href="/project/{{ project.id }}/best" class="active">Best</a>
+</div>
+{% endblock %}
+
 {% block content %}
-
 <style>
-  .trophy-section {
-    text-align: center;
-    padding: 3rem 0 2rem;
-  }
-  .trophy-icon {
-    font-size: 5rem;
-    display: block;
-    margin-bottom: 1rem;
-    animation: float 3s ease-in-out infinite;
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
-  }
+  .trophy-section { text-align: center; padding: 2rem 0 2.5rem; }
+  .trophy-icon { font-size: 4.5rem; display: block; margin-bottom: 0.8rem; animation: float 3s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
 
-  .best-card {
-    max-width: 580px;
-    margin: 0 auto;
-    background: var(--card);
-    border: 2px solid #f59e0b;
-    border-radius: 16px;
-    overflow: hidden;
-    position: relative;
-  }
-  .best-card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at top, rgba(245,158,11,0.08), transparent 60%);
-    pointer-events: none;
-  }
+  .best-card { max-width: 560px; margin: 0 auto; background: var(--card); border: 2px solid var(--gold); border-radius: 16px; overflow: hidden; }
+  .best-header { background: linear-gradient(135deg,rgba(245,158,11,0.12),rgba(245,158,11,0.04)); border-bottom: 1px solid rgba(245,158,11,0.2); padding: 1.3rem 1.8rem; display: flex; align-items: center; justify-content: space-between; }
+  .best-header .label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+  .best-header .name { font-size: 1.2rem; font-weight: 800; color: var(--text); }
 
-  .best-header {
-    background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(245,158,11,0.05));
-    border-bottom: 1px solid rgba(245,158,11,0.2);
-    padding: 1.5rem 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .best-header .crown { font-size: 1.5rem; }
-  .best-header .title-group .label {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: #f59e0b;
-  }
-  .best-header .title-group .name {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: var(--text);
-  }
+  .accuracy-display { text-align: center; padding: 2rem; border-bottom: 1px solid var(--border); }
+  .accuracy-display .big-num { font-family: var(--mono); font-size: 4.5rem; font-weight: 700; color: var(--accent3); line-height: 1; display: block; }
+  .accuracy-display .sub { font-family: var(--mono); font-size: 0.65rem; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-top: 0.4rem; }
 
-  .accuracy-display {
-    text-align: center;
-    padding: 2.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .accuracy-display .big-num {
-    font-family: var(--mono);
-    font-size: 5rem;
-    font-weight: 700;
-    color: var(--accent3);
-    line-height: 1;
-    display: block;
-  }
-  .accuracy-display .sub {
-    font-family: var(--mono);
-    font-size: 0.7rem;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 0.5rem;
-  }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0;
-  }
-  .detail-cell {
-    padding: 1.2rem 1.8rem;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
+  .detail-grid { display: grid; grid-template-columns: repeat(2,1fr); }
+  .detail-cell { padding: 1rem 1.5rem; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .detail-cell:nth-child(even) { border-right: none; }
   .detail-cell:nth-last-child(-n+2) { border-bottom: none; }
-  .detail-cell .dk {
-    font-family: var(--mono);
-    font-size: 0.6rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 0.3rem;
-  }
-  .detail-cell .dv {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--text);
-  }
+  .detail-cell .dk { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem; }
+  .detail-cell .dv { font-size: 0.9rem; font-weight: 600; color: var(--text); }
 
-  .hash-section {
-    padding: 1.2rem 1.8rem;
-  }
-  .hash-section .hk {
-    font-family: var(--mono);
-    font-size: 0.6rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 0.4rem;
-  }
+  .hash-section { padding: 1rem 1.5rem; }
+  .hash-section .hk { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; margin-top: 0.7rem; }
 
-  .no-models {
-    text-align: center;
-    padding: 4rem 2rem;
-    color: var(--muted);
-  }
-  .no-models .icon { font-size: 3rem; margin-bottom: 1rem; }
+  .no-models { text-align: center; padding: 4rem 2rem; color: var(--muted); }
 </style>
 
-<div class="trophy-section">
-  {% if block %}
-  <span class="trophy-icon">🏆</span>
-  <div class="page-header" style="margin-bottom:2rem">
-    <div class="eyebrow">⟡ Hall of Fame</div>
-    <h1>Best Model</h1>
-    <p>The highest accuracy model registered on the blockchain.</p>
-  </div>
+<div class="page-header">
+  <div class="eyebrow">⟡ {{ project.name }}</div>
+  <h1>Best Model</h1>
+  <p>Highest accuracy model in this project's blockchain.</p>
+</div>
 
+{% if block %}
+<div class="trophy-section">
+  <span class="trophy-icon">🏆</span>
   <div class="best-card">
     <div class="best-header">
-      <div class="title-group">
-        <div class="label">Champion Model</div>
+      <div>
+        <div class="label">Champion</div>
         <div class="name">{{ block.data.model_name }}</div>
       </div>
-      <div class="crown">👑</div>
+      <div style="font-size:1.5rem">👑</div>
     </div>
-
     <div class="accuracy-display">
       <span class="big-num">{{ "%.0f"|format(block.data.accuracy * 100) }}%</span>
-      <span class="sub">Accuracy Score on Iris Test Set</span>
+      <span class="sub">Accuracy</span>
     </div>
-
     <div class="detail-grid">
-      <div class="detail-cell">
-        <div class="dk">Username</div>
-        <div class="dv">{{ block.data.username }}</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dk">Block Index</div>
-        <div class="dv">#{{ block.index }}</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dk">Raw Accuracy</div>
-        <div class="dv" style="color:var(--accent3)">{{ block.data.accuracy }}</div>
-      </div>
-      <div class="detail-cell">
-        <div class="dk">Timestamp</div>
-        <div class="dv" style="font-family:var(--mono);font-size:0.75rem">{{ block.timestamp | int }}</div>
-      </div>
+      <div class="detail-cell"><div class="dk">Username</div><div class="dv">{{ block.data.username }}</div></div>
+      <div class="detail-cell"><div class="dk">Block</div><div class="dv">#{{ block.index }}</div></div>
+      <div class="detail-cell"><div class="dk">Raw Score</div><div class="dv" style="color:var(--accent3)">{{ block.data.accuracy }}</div></div>
+      <div class="detail-cell"><div class="dk">Timestamp</div><div class="dv" style="font-family:var(--mono);font-size:0.72rem">{{ block.timestamp | int }}</div></div>
     </div>
-
     <div class="hash-section">
       <div class="hk">Block Hash</div>
-      <div class="hash" style="margin-bottom:0.7rem">{{ block.hash }}</div>
-      <div class="hk">Model File Hash (SHA-256)</div>
+      <div class="hash">{{ block.hash }}</div>
+      <div class="hk">Model SHA-256</div>
       <div class="hash">{{ block.data.model_hash }}</div>
     </div>
   </div>
-
-  <div style="margin-top:1.5rem; display:flex; gap:0.8rem; justify-content:center; flex-wrap:wrap;">
-    <a href="/verify" class="btn btn-ghost">🔍 Verify This Model</a>
-    <a href="/train" class="btn btn-primary">⚡ Train New Model</a>
-    <a href="/chain" class="btn btn-ghost">⛓️ View Full Chain</a>
+  <div style="margin-top:1.5rem;display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap;">
+    <a href="/project/{{ project.id }}/verify" class="btn btn-ghost">🔍 Verify</a>
+    <a href="/project/{{ project.id }}/train" class="btn btn-primary">⚡ Train New</a>
+    <a href="/project/{{ project.id }}/chain" class="btn btn-ghost">⛓️ Full Chain</a>
   </div>
-
-  {% else %}
-  <div class="no-models">
-    <div class="icon">🏜️</div>
-    <p style="margin-bottom:1rem">No models have been trained yet.</p>
-    <a href="/train" class="btn btn-primary">Train Your First Model</a>
-  </div>
-  {% endif %}
 </div>
-
+{% else %}
+<div class="no-models">
+  <div style="font-size:2.5rem;margin-bottom:0.8rem">🏜️</div>
+  <p style="margin-bottom:1.2rem">No models trained yet in this project.</p>
+  <a href="/project/{{ project.id }}/train" class="btn btn-primary">Train First Model</a>
+</div>
+{% endif %}
 {% endblock %}

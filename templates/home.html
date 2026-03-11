@@ -1,200 +1,72 @@
 {% extends "base.html" %}
-{% block title %}ChainML — Home{% endblock %}
+{% block title %}ChainML — Projects{% endblock %}
 {% block content %}
-
 <style>
-  .hero { text-align: center; padding: 3rem 0 4rem; }
-  .hero .logo-big {
-    font-family: var(--mono);
-    font-size: clamp(3rem, 10vw, 6rem);
-    font-weight: 700;
-    letter-spacing: -2px;
-    line-height: 1;
-    margin-bottom: 1rem;
-  }
-  .hero .logo-big .c1 { color: var(--accent); }
-  .hero .logo-big .c2 { color: var(--accent2); }
-  .hero .logo-big .c3 { color: #fff; }
-  .hero p {
-    font-size: 1.1rem;
-    color: var(--muted);
-    max-width: 520px;
-    margin: 0 auto 2.5rem;
-    line-height: 1.6;
-  }
+  .hero { text-align: center; padding: 2.5rem 0 3rem; }
+  .logo-big { font-family: var(--mono); font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 0.8rem; }
+  .logo-big .c1 { color: var(--accent); }
+  .logo-big .c2 { color: var(--accent2); }
+  .hero p { font-size: 1rem; color: var(--muted); max-width: 480px; margin: 0 auto 2rem; line-height: 1.6; }
 
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
-    margin-bottom: 3rem;
+  .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .project-card {
+    display: block; text-decoration: none;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.4rem; transition: all 0.2s; position: relative; overflow: hidden;
   }
-  .stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.5rem;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .stat-card .num {
-    font-family: var(--mono);
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--accent);
-    display: block;
-    line-height: 1;
-  }
-  .stat-card .lbl {
-    font-family: var(--mono);
-    font-size: 0.65rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-top: 0.4rem;
-    display: block;
-  }
-  .stat-card.green .num { color: var(--accent3); }
-  .stat-card.purple .num { color: #a78bfa; }
+  .project-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,229,255,0.08); }
+  .project-card .proj-name { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
+  .project-card .proj-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin-bottom: 1rem; min-height: 2.5rem; }
+  .project-card .proj-meta { display: flex; align-items: center; justify-content: space-between; }
+  .proj-count { font-family: var(--mono); font-size: 0.68rem; color: var(--accent); letter-spacing: 1px; }
+  .proj-arrow { font-family: var(--mono); color: var(--muted); font-size: 0.85rem; transition: transform 0.2s; }
+  .project-card:hover .proj-arrow { transform: translate(3px,-3px); color: var(--text); }
 
-  .action-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
-    max-width: 600px;
-    margin: 0 auto;
+  .new-card {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: transparent; border: 1px dashed var(--border); border-radius: 12px;
+    padding: 1.4rem; text-decoration: none; transition: all 0.2s; min-height: 130px;
+    color: var(--muted); font-family: var(--mono); font-size: 0.75rem; letter-spacing: 1px; gap: 0.5rem;
   }
-  .action-card {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    text-decoration: none;
-    transition: all 0.25s;
-    position: relative;
-    overflow: hidden;
-  }
-  .action-card:hover {
-    border-color: var(--accent);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 30px rgba(0,229,255,0.1);
-  }
-  .action-card:hover.purple { border-color: var(--accent2); box-shadow: 0 8px 30px rgba(124,58,237,0.15); }
-  .action-card:hover.green { border-color: var(--accent3); box-shadow: 0 8px 30px rgba(16,185,129,0.1); }
-  .action-card:hover.red { border-color: var(--danger); box-shadow: 0 8px 30px rgba(244,63,94,0.1); }
+  .new-card:hover { border-color: var(--accent); color: var(--accent); }
+  .new-card .plus { font-size: 1.5rem; }
 
-  .action-icon {
-    font-size: 2rem;
-    margin-bottom: 0.8rem;
-    display: block;
-  }
-  .action-card h3 {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text);
-    margin-bottom: 0.3rem;
-  }
-  .action-card p {
-    font-size: 0.78rem;
-    color: var(--muted);
-    line-height: 1.4;
-  }
-  .action-arrow {
-    position: absolute;
-    top: 1rem; right: 1rem;
-    font-family: var(--mono);
-    color: var(--muted);
-    font-size: 0.9rem;
-    transition: transform 0.2s;
-  }
-  .action-card:hover .action-arrow { transform: translate(3px,-3px); color: var(--text); }
-
-  .chain-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    font-family: var(--mono);
-    font-size: 0.75rem;
-  }
-  .dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--accent3);
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-
-  @media (max-width: 500px) {
-    .action-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: 1fr; }
-  }
+  .empty-state { text-align: center; padding: 3rem 2rem; color: var(--muted); }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
 </style>
 
 <div class="hero">
-  <div class="logo-big">
-    <span class="c1">CHAIN</span><span class="c3">⟡</span><span class="c2">ML</span>
-  </div>
-  <p>Decentralized ML model registry. Train models, store them on-chain, verify integrity, find the best performer.</p>
-
-  <div class="chain-status">
-    <div class="dot"></div>
-    <span style="color: var(--muted)">Blockchain Status:</span>
-    {% if stats.chain_valid %}
-      <span style="color: var(--accent3)">VALID</span>
-    {% else %}
-      <span style="color: var(--danger)">COMPROMISED</span>
-    {% endif %}
-  </div>
+  <div class="logo-big"><span class="c1">CHAIN</span>⟡<span class="c2">ML</span></div>
+  <p>Multi-project ML model registry backed by SQLite and per-project blockchains.</p>
 </div>
 
-<div class="stats-row">
-  <div class="stat-card">
-    <span class="num">{{ stats.blocks }}</span>
-    <span class="lbl">Models on Chain</span>
-  </div>
-  <div class="stat-card green">
-    <span class="num">{{ stats.models }}</span>
-    <span class="lbl">Saved .pkl Files</span>
-  </div>
-  <div class="stat-card purple">
-    <span class="num">{{ stats.blocks + 1 }}</span>
-    <span class="lbl">Total Blocks</span>
-  </div>
+<div class="page-header">
+  <div class="eyebrow">⟡ Your Projects</div>
+  <h1>Projects</h1>
 </div>
 
-<div class="action-grid">
-  <a href="/train" class="action-card">
-    <span class="action-icon">🧠</span>
-    <h3>Train Model</h3>
-    <p>Train a new ML model and commit it to the blockchain</p>
-    <span class="action-arrow">↗</span>
+{% if projects %}
+<div class="projects-grid">
+  {% for p in projects %}
+  <a href="/project/{{ p.id }}" class="project-card">
+    <div class="proj-name">{{ p.name }}</div>
+    <div class="proj-desc">{{ p.description if p.description else 'No description.' }}</div>
+    <div class="proj-meta">
+      <span class="proj-count">{{ p.model_count }} model{{ 's' if p.model_count != 1 else '' }}</span>
+      <span class="proj-arrow">↗</span>
+    </div>
   </a>
-  <a href="/chain" class="action-card purple">
-    <span class="action-icon">⛓️</span>
-    <h3>View Chain</h3>
-    <p>Explore all blocks and their model metadata</p>
-    <span class="action-arrow">↗</span>
-  </a>
-  <a href="/verify" class="action-card red">
-    <span class="action-icon">🔍</span>
-    <h3>Verify Model</h3>
-    <p>Check if a model file matches the blockchain record</p>
-    <span class="action-arrow">↗</span>
-  </a>
-  <a href="/best" class="action-card green">
-    <span class="action-icon">🏆</span>
-    <h3>Best Model</h3>
-    <p>Find the highest accuracy model on the chain</p>
-    <span class="action-arrow">↗</span>
+  {% endfor %}
+  <a href="/projects/new" class="new-card">
+    <span class="plus">＋</span>
+    <span>New Project</span>
   </a>
 </div>
-
+{% else %}
+<div class="empty-state">
+  <div class="icon">🗂️</div>
+  <p style="margin-bottom:1.2rem">No projects yet. Create your first one to get started.</p>
+  <a href="/projects/new" class="btn btn-primary">+ Create Project</a>
+</div>
+{% endif %}
 {% endblock %}
