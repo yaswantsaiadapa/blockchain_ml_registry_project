@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block title %}ChainML — Train Model{% endblock %}
+{% block content %}
+
+<style>
+  .train-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .train-layout { grid-template-columns: 1fr; } }
+
+  .result-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+
+  .result-box h3 {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .result-row:last-child { border-bottom: none; }
+  .result-row .key { color: var(--muted); font-family: var(--mono); font-size: 0.75rem; }
+  .result-row .val { color: var(--text); font-weight: 600; text-align: right; }
+
+  .accuracy-big {
+    text-align: center;
+    padding: 2rem 0 1rem;
+  }
+  .accuracy-big .num {
+    font-family: var(--mono);
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--accent3);
+    display: block;
+  }
+  .accuracy-big .lbl {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .step .dot {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    flex-shrink: 0;
+  }
+  .step.done .dot { background: var(--accent3); border-color: var(--accent3); color: #000; }
+  .step.done { color: var(--text); }
+
+  .block-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(124,58,237,0.15);
+    border: 1px solid rgba(124,58,237,0.3);
+    color: #a78bfa;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    margin-bottom: 1rem;
+  }
+</style>
+
+<div class="page-header">
+  <div class="eyebrow">⟡ Training Lab</div>
+  <h1>Train a Model</h1>
+  <p>Train a RandomForest classifier and register it on the blockchain ledger.</p>
+</div>
+
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+<div class="train-layout">
+  <!-- FORM -->
+  <div class="card">
+    {% if not result %}
+    <div class="step-indicator">
+      <div class="step"><div class="dot">1</div> Enter your credentials</div>
+      <div class="step"><div class="dot">2</div> Train model on Iris dataset</div>
+      <div class="step"><div class="dot">3</div> Hash model file (SHA-256)</div>
+      <div class="step"><div class="dot">4</div> Add block to blockchain</div>
+    </div>
+    {% else %}
+    <div class="step-indicator">
+      <div class="step done"><div class="dot">✓</div> Credentials entered</div>
+      <div class="step done"><div class="dot">✓</div> Model trained</div>
+      <div class="step done"><div class="dot">✓</div> SHA-256 hash generated</div>
+      <div class="step done"><div class="dot">✓</div> Block added to chain</div>
+    </div>
+    {% endif %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input class="input" type="text" name="username" placeholder="e.g. alice" value="{{ request.form.get('username', '') }}" required>
+      </div>
+      <div class="form-group">
+        <label>Model Name</label>
+        <input class="input" type="text" name="model_name" placeholder="e.g. iris_v1" value="{{ request.form.get('model_name', '') }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">
+        ⚡ Train &amp; Register Model
+      </button>
+    </form>
+  </div>
+
+  <!-- RESULT -->
+  <div>
+    {% if result %}
+    <div class="result-box">
+      <div class="block-badge">⛓ Block #{{ block.index }} added</div>
+
+      <div class="accuracy-big">
+        <span class="num">{{ "%.0f"|format(result.accuracy * 100) }}%</span>
+        <span class="lbl">Accuracy</span>
+      </div>
+
+      <div class="result-row">
+        <span class="key">USER</span>
+        <span class="val">{{ result.username }}</span>
+      </div>
+      <div class="result-row">
+        <span class="key">MODEL</span>
+        <span class="val">{{ result.model_name }}</span>
+      </div>
+      <div class="result-row">
+        <span class="key">FILE</span>
+        <span class="val" style="font-size:0.7rem">{{ result.filename }}</span>
+      </div>
+      <div class="result-row">
+        <span class="key">BLOCK HASH</span>
+        <div></div>
+      </div>
+      <div class="hash" style="margin-top:0.3rem">{{ block.hash }}</div>
+      <div class="result-row" style="margin-top:0.8rem">
+        <span class="key">MODEL HASH (SHA-256)</span>
+        <div></div>
+      </div>
+      <div class="hash" style="margin-top:0.3rem">{{ result.model_hash }}</div>
+
+      <div style="margin-top:1.2rem; display:flex; gap:0.7rem; flex-wrap:wrap;">
+        <a href="/chain" class="btn btn-ghost">View Chain</a>
+        <a href="/verify" class="btn btn-ghost">Verify Model</a>
+      </div>
+    </div>
+    {% else %}
+    <div class="card" style="border-style:dashed; text-align:center; padding:3rem 2rem;">
+      <div style="font-size:3rem; margin-bottom:1rem;">🧬</div>
+      <p style="color:var(--muted); font-size:0.85rem; line-height:1.6;">
+        Train results will appear here.<br>
+        Each model gets a unique SHA-256 hash and its own block on the chain.
+      </p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
