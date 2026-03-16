@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}ChainML — {{ project.name }}{% endblock %}
+{% block subnav %}
+<div class="subnav">
+  <div class="subnav-label">PROJECT / <span>{{ project.name }}</span></div>
+  <a href="/project/{{ project.id }}" class="active">Overview</a>
+  <a href="/project/{{ project.id }}/submit">Submit</a>
+  <a href="/project/{{ project.id }}/leaderboard">Leaderboard</a>
+  <a href="/project/{{ project.id }}/chain">Chain</a>
+  <a href="/project/{{ project.id }}/verify">Verify</a>
+</div>
+{% endblock %}
+{% block content %}
+<style>
+.overview-grid{display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;}
+@media(max-width:700px){.overview-grid{grid-template-columns:1fr;}}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem;}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.2rem;text-align:center;}
+.stat-card .snum{font-family:var(--mono);font-size:2rem;font-weight:700;color:var(--accent2);display:block;line-height:1;}
+.stat-card .slbl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:.3rem;display:block;}
+.best-box{background:var(--card);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:1.2rem;margin-bottom:1.5rem;}
+.best-box .best-lbl{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem;}
+.best-box .best-acc{font-family:var(--mono);font-size:2.2rem;font-weight:700;color:var(--green);}
+.best-box .best-info{font-size:.85rem;color:var(--muted);margin-top:.2rem;}
+.actions{display:flex;flex-direction:column;gap:.7rem;}
+.action-card{display:flex;align-items:center;gap:1rem;background:var(--card);border:1px solid var(--border);
+  border-radius:10px;padding:1rem 1.2rem;text-decoration:none;transition:all .2s;}
+.action-card:hover{border-color:var(--accent2);transform:translateX(3px);}
+.action-card .aico{font-size:1.4rem;}
+.action-card .atxt h4{font-size:.88rem;font-weight:700;color:var(--text);}
+.action-card .atxt p{font-size:.75rem;color:var(--muted);}
+</style>
+<div class="ph">
+  <div class="ph-eye">⬡ Project</div>
+  <h1>{{ project.name }}</h1>
+  <p>by {{ project.owner_name }}{% if project.description %} — {{ project.description }}{% endif %}</p>
+</div>
+{% if delete_error %}<div class="alert alert-error">{{ delete_error }}</div>{% endif %}
+<div class="stats-row">
+  <div class="stat-card"><span class="snum">{{ submissions|length }}</span><span class="slbl">Submissions</span></div>
+  <div class="stat-card"><span class="snum" style="color:var(--green)">{% if best %}{{ "%.0f"|format(best.verified_accuracy*100) }}%{% else %}—{% endif %}</span><span class="slbl">Best Accuracy</span></div>
+  <div class="stat-card"><span class="snum" style="color:var(--accent)">{{ submissions|length + 1 }}</span><span class="slbl">Blocks</span></div>
+</div>
+<div class="overview-grid">
+  <div>
+    {% if best %}
+    <div class="best-box">
+      <div class="best-lbl">🏆 Current Champion</div>
+      <div class="best-acc">{{ "%.0f"|format(best.verified_accuracy*100) }}%</div>
+      <div class="best-info">{{ best.username }} · Block #{{ best.block_index }}</div>
+      <div style="margin-top:.6rem;">
+        <a href="{{ best.eth_tx_url }}" target="_blank" class="eth-link">
+          {% if best.eth_mode == 'real' %}🔗 View on Etherscan{% else %}🔗 Etherscan (mock demo){% endif %}
+        </a>
+        {% if best.eth_mode == 'mock' %}
+        <span class="badge badge-mock" style="margin-left:.5rem;">Mock Mode</span>
+        {% else %}
+        <span class="badge badge-green" style="margin-left:.5rem;">Live Sepolia</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% if current_user %}
+    <div style="display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:1.5rem;">
+      <a href="/project/{{ project.id }}/download" class="btn btn-cyan">⬇ Download Dataset</a>
+      <a href="/project/{{ project.id }}/submit" class="btn btn-primary">⬆ Submit Model</a>
+      {% if current_user.id == project.owner_id %}
+      <form method="POST" action="/project/{{ project.id }}/delete" style="display:inline;"
+        onsubmit="return confirm('Delete this project? This cannot be undone.')">
+        <button type="submit" class="btn btn-red btn-sm">🗑 Delete Project</button>
+      </form>
+      {% endif %}
+    </div>
+    {% else %}
+    <div class="alert alert-info" style="margin-bottom:1.5rem;">
+      <a href="/login" style="color:var(--accent2);">Login</a> to download the dataset or submit a model.
+    </div>
+    {% endif %}
+    {% if submissions %}
+    <div class="card">
+      <div style="font-family:var(--mono);font-size:.63rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;">Recent Submissions</div>
+      <table class="tbl">
+        <thead><tr><th>#</th><th>User</th><th>Accuracy</th><th>Ethereum</th></tr></thead>
+        <tbody>
+        {% for s in submissions[:5] %}
+        <tr>
+          <td><span style="font-family:var(--mono);font-size:.7rem;color:var(--muted)">{{ s.block_index }}</span></td>
+          <td>{{ s.username }}</td>
+          <td><span style="font-family:var(--mono);color:var(--green);font-weight:700;">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span></td>
+          <td><a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">{% if s.eth_mode=='real' %}🔗 Live{% else %}🔗 Mock{% endif %}</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% if submissions|length > 5 %}<div style="margin-top:.8rem;"><a href="/project/{{ project.id }}/leaderboard" class="btn btn-ghost btn-sm">View All</a></div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <div class="actions">
+    <a href="/project/{{ project.id }}/leaderboard" class="action-card">
+      <span class="aico">🏆</span><div class="atxt"><h4>Leaderboard</h4><p>Ranked by accuracy</p></div>
+    </a>
+    <a href="/project/{{ project.id }}/chain" class="action-card">
+      <span class="aico">⛓</span><div class="atxt"><h4>Chain View</h4><p>All blocks & hashes</p></div>
+    </a>
+    <a href="/project/{{ project.id }}/verify" class="action-card">
+      <span class="aico">🔍</span><div class="atxt"><h4>Verify</h4><p>Check integrity</p></div>
+    </a>
+  </div>
+</div>
+{% endblock %}

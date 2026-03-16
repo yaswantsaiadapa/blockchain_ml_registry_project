@@ -1,34 +1,25 @@
 {% extends "base.html" %}
 {% block title %}ChainML — New Project{% endblock %}
 {% block content %}
-<style>
-  .form-wrap { max-width: 500px; margin: 0 auto; }
-</style>
-
-<div class="page-header">
-  <div class="eyebrow">⟡ Registry</div>
-  <h1>New Project</h1>
-  <p>Each project gets its own blockchain and model storage.</p>
-</div>
-
-{% if error %}
-<div class="alert alert-error">{{ error }}</div>
-{% endif %}
-
-<div class="form-wrap card">
-  <form method="POST">
-    <div class="form-group">
-      <label>Project Name</label>
-      <input class="input" type="text" name="name" placeholder="e.g. Iris Classifier, Fraud Detection" value="{{ request.form.get('name', '') }}" required autofocus>
-    </div>
-    <div class="form-group">
-      <label>Description (optional)</label>
-      <input class="input" type="text" name="description" placeholder="Short description of this project" value="{{ request.form.get('description', '') }}">
-    </div>
-    <div style="display:flex; gap:0.8rem; margin-top:0.5rem;">
-      <button type="submit" class="btn btn-primary">Create Project</button>
-      <a href="/" class="btn btn-ghost">Cancel</a>
-    </div>
-  </form>
+<style>.wrap{max-width:560px;}</style>
+<div class="wrap">
+  <div class="ph"><div class="ph-eye">⬡ Create</div><h1>New Project</h1>
+  <p>Upload a preprocessed CSV dataset. Others will download it and submit trained models.</p></div>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <div class="card">
+    <form method="POST" enctype="multipart/form-data">
+      <div class="fg"><label>Project Name</label>
+        <input class="input" type="text" name="name" placeholder="e.g. Iris Classifier, Fraud Detection" value="{{ request.form.get('name','') }}" required autofocus></div>
+      <div class="fg"><label>Description</label>
+        <textarea class="input" name="description" placeholder="Describe the problem, dataset, and goal...">{{ request.form.get('description','') }}</textarea></div>
+      <div class="fg"><label>Dataset CSV</label>
+        <input class="input" type="file" name="dataset" accept=".csv" required>
+        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">⚠ Last column must be the target/label. Max 50 MB. Must be preprocessed (no missing values).</p></div>
+      <div style="display:flex;gap:.8rem;margin-top:.5rem;">
+        <button type="submit" class="btn btn-primary">Create Project</button>
+        <a href="/" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}

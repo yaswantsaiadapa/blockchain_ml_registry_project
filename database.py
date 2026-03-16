@@ -1,137 +1,168 @@
-import sqlite3
-import json
-import os
-
-DB_PATH = os.path.join(os.path.dirname(__file__), "chainml.db")
-
+import sqlite3, time, os
+from config import DB_PATH
 
 def get_conn():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
-
 def init_db():
+    conn = get_conn(); c = conn.cursor()
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        created_at REAL NOT NULL)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS projects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id INTEGER NOT NULL,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        dataset_path TEXT NOT NULL,
+        dataset_name TEXT NOT NULL,
+        created_at REAL NOT NULL,
+        FOREIGN KEY(owner_id) REFERENCES users(id))""")
+    c.execute("""CREATE TABLE IF NOT EXISTS submissions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        model_filename TEXT NOT NULL,
+        model_path TEXT NOT NULL,
+        model_hash TEXT NOT NULL,
+        verified_accuracy REAL NOT NULL,
+        combined_hash TEXT NOT NULL,
+        eth_tx_hash TEXT NOT NULL,
+        eth_tx_url TEXT NOT NULL,
+        eth_mode TEXT NOT NULL DEFAULT 'mock',
+        block_index INTEGER NOT NULL,
+        previous_hash TEXT NOT NULL,
+        submitted_at REAL NOT NULL,
+        FOREIGN KEY(project_id) REFERENCES projects(id),
+        FOREIGN KEY(user_id) REFERENCES users(id))""")
+    conn.commit(); conn.close()
+
+def create_user(username, email, pw_hash):
     conn = get_conn()
-    c = conn.cursor()
+    try:
+        conn.execute("INSERT INTO users (username,email,password_hash,created_at) VALUES (?,?,?,?)",
+                     (username.strip(), email.strip().lower(), pw_hash, time.time()))
+        conn.commit(); return True, None
+    except sqlite3.IntegrityError as e:
+        return False, ("Username already taken." if "username" in str(e) else "Email already registered.")
+    finally:
+        conn.close()
 
-    # Projects table
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS projects (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            description TEXT DEFAULT '',
-            created_at REAL NOT NULL
-        )
-    """)
-
-    # Blocks table — one row per block (including genesis)
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS blocks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER NOT NULL,
-            block_index INTEGER NOT NULL,
-            timestamp REAL NOT NULL,
-            previous_hash TEXT NOT NULL,
-            block_hash TEXT NOT NULL,
-            data TEXT NOT NULL,
-            FOREIGN KEY(project_id) REFERENCES projects(id)
-        )
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-# ---------- PROJECT CRUD ----------
-
-def create_project(name: str, description: str = "") -> int:
-    import time
+def get_user_by_id(uid):
     conn = get_conn()
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO projects (name, description, created_at) VALUES (?, ?, ?)",
-        (name.strip(), description.strip(), time.time())
-    )
-    project_id = c.lastrowid
+    row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    conn.close(); return dict(row) if row else None
 
-    # Create genesis block for this project
-    from blockchain import Block
-    genesis = Block(0, {"info": "Genesis Block"}, "0")
-    c.execute("""
-        INSERT INTO blocks (project_id, block_index, timestamp, previous_hash, block_hash, data)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (project_id, genesis.index, genesis.timestamp,
-          genesis.previous_hash, genesis.hash,
-          json.dumps(genesis.data)))
+def get_user_by_username(u):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM users WHERE username=?", (u.strip(),)).fetchone()
+    conn.close(); return dict(row) if row else None
 
-    conn.commit()
-    conn.close()
-    return project_id
+def get_user_by_email(e):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM users WHERE email=?", (e.strip().lower(),)).fetchone()
+    conn.close(); return dict(row) if row else None
 
+def create_project(owner_id, name, description, dataset_path, dataset_name):
+    conn = get_conn()
+    try:
+        conn.execute("INSERT INTO projects (owner_id,name,description,dataset_path,dataset_name,created_at) VALUES (?,?,?,?,?,?)",
+                     (owner_id, name.strip(), description.strip(), dataset_path, dataset_name, time.time()))
+        conn.commit(); return True, None
+    except sqlite3.IntegrityError:
+        return False, "A project with that name already exists."
+    finally:
+        conn.close()
 
 def get_all_projects():
     conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM projects ORDER BY created_at DESC"
-    ).fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    rows = conn.execute("""SELECT p.*, u.username AS owner_name, COUNT(s.id) AS submission_count
+        FROM projects p JOIN users u ON p.owner_id=u.id
+        LEFT JOIN submissions s ON s.project_id=p.id
+        GROUP BY p.id ORDER BY p.created_at DESC""").fetchall()
+    conn.close(); return [dict(r) for r in rows]
 
-
-def get_project(project_id: int):
+def get_project(pid):
     conn = get_conn()
-    row = conn.execute(
-        "SELECT * FROM projects WHERE id = ?", (project_id,)
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    row = conn.execute("""SELECT p.*, u.username AS owner_name
+        FROM projects p JOIN users u ON p.owner_id=u.id WHERE p.id=?""", (pid,)).fetchone()
+    conn.close(); return dict(row) if row else None
 
-
-def project_exists(name: str) -> bool:
+def delete_project(pid):
     conn = get_conn()
-    row = conn.execute(
-        "SELECT id FROM projects WHERE name = ?", (name.strip(),)
-    ).fetchone()
-    conn.close()
-    return row is not None
+    for r in conn.execute("SELECT model_path FROM submissions WHERE project_id=?", (pid,)).fetchall():
+        try:
+            if os.path.exists(r["model_path"]): os.remove(r["model_path"])
+        except: pass
+    proj = conn.execute("SELECT dataset_path FROM projects WHERE id=?", (pid,)).fetchone()
+    if proj and os.path.exists(proj["dataset_path"]):
+        try: os.remove(proj["dataset_path"])
+        except: pass
+    conn.execute("DELETE FROM submissions WHERE project_id=?", (pid,))
+    conn.execute("DELETE FROM projects WHERE id=?", (pid,))
+    conn.commit(); conn.close()
 
-
-# ---------- BLOCK CRUD ----------
-
-def save_block(project_id: int, block) -> None:
+def count_outside_submissions(pid, owner_id):
     conn = get_conn()
-    conn.execute("""
-        INSERT INTO blocks (project_id, block_index, timestamp, previous_hash, block_hash, data)
-        VALUES (?, ?, ?, ?, ?, ?)
-    """, (project_id, block.index, block.timestamp,
-          block.previous_hash, block.hash,
-          json.dumps(block.data)))
-    conn.commit()
-    conn.close()
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM submissions WHERE project_id=? AND user_id!=?", (pid, owner_id)).fetchone()
+    conn.close(); return row["cnt"] if row else 0
 
-
-def load_blocks(project_id: int) -> list:
-    """Return list of block dicts ordered by block_index."""
+def get_project_submissions(pid):
     conn = get_conn()
-    rows = conn.execute(
-        "SELECT * FROM blocks WHERE project_id = ? ORDER BY block_index ASC",
-        (project_id,)
-    ).fetchall()
-    conn.close()
-    result = []
-    for r in rows:
-        d = dict(r)
-        d["data"] = json.loads(d["data"])
-        result.append(d)
-    return result
+    rows = conn.execute("""SELECT s.*, u.username FROM submissions s
+        JOIN users u ON s.user_id=u.id WHERE s.project_id=?
+        ORDER BY s.verified_accuracy DESC, s.submitted_at ASC""", (pid,)).fetchall()
+    conn.close(); return [dict(r) for r in rows]
 
-
-def get_project_model_count(project_id: int) -> int:
+def get_latest_submission_hash(pid):
     conn = get_conn()
-    row = conn.execute(
-        "SELECT COUNT(*) as cnt FROM blocks WHERE project_id = ? AND block_index > 0",
-        (project_id,)
-    ).fetchone()
+    row = conn.execute("SELECT combined_hash FROM submissions WHERE project_id=? ORDER BY block_index DESC LIMIT 1", (pid,)).fetchone()
     conn.close()
-    return row["cnt"] if row else 0
+    if row: return row["combined_hash"]
+    import hashlib, json
+    return hashlib.sha256(json.dumps({"genesis": True, "project_id": pid}, sort_keys=True).encode()).hexdigest()
+
+def get_next_block_index(pid):
+    conn = get_conn()
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM submissions WHERE project_id=?", (pid,)).fetchone()
+    conn.close(); return (row["cnt"] if row else 0) + 1
+
+def save_submission(project_id, user_id, model_filename, model_path, model_hash,
+                    verified_accuracy, combined_hash, eth_tx_hash, eth_tx_url,
+                    eth_mode, block_index, previous_hash, submitted_at):  # ← add submitted_at
+    conn = get_conn()
+    conn.execute("""INSERT INTO submissions
+        (project_id,user_id,model_filename,model_path,model_hash,verified_accuracy,
+         combined_hash,eth_tx_hash,eth_tx_url,eth_mode,block_index,previous_hash,submitted_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (project_id, user_id, model_filename, model_path, model_hash, verified_accuracy,
+         combined_hash, eth_tx_hash, eth_tx_url, eth_mode, block_index, previous_hash,
+         submitted_at))  # ← use passed value, not time.time()
+    conn.commit(); conn.close()
+
+def get_submission(sid):
+    conn = get_conn()
+    row = conn.execute("""SELECT s.*, u.username, p.name AS project_name, p.id AS project_id
+        FROM submissions s JOIN users u ON s.user_id=u.id JOIN projects p ON s.project_id=p.id
+        WHERE s.id=?""", (sid,)).fetchone()
+    conn.close(); return dict(row) if row else None
+
+def get_user_submissions(uid):
+    conn = get_conn()
+    rows = conn.execute("""SELECT s.*, p.name AS project_name FROM submissions s
+        JOIN projects p ON s.project_id=p.id WHERE s.user_id=?
+        ORDER BY s.submitted_at DESC""", (uid,)).fetchall()
+    conn.close(); return [dict(r) for r in rows]
+
+def get_user_projects(uid):
+    conn = get_conn()
+    rows = conn.execute("""SELECT p.*, COUNT(s.id) AS submission_count FROM projects p
+        LEFT JOIN submissions s ON s.project_id=p.id WHERE p.owner_id=?
+        GROUP BY p.id ORDER BY p.created_at DESC""", (uid,)).fetchall()
+    conn.close(); return [dict(r) for r in rows]

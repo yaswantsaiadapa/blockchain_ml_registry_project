@@ -2,71 +2,59 @@
 {% block title %}ChainML — Projects{% endblock %}
 {% block content %}
 <style>
-  .hero { text-align: center; padding: 2.5rem 0 3rem; }
-  .logo-big { font-family: var(--mono); font-size: clamp(2.5rem, 8vw, 5rem); font-weight: 700; letter-spacing: -2px; line-height: 1; margin-bottom: 0.8rem; }
-  .logo-big .c1 { color: var(--accent); }
-  .logo-big .c2 { color: var(--accent2); }
-  .hero p { font-size: 1rem; color: var(--muted); max-width: 480px; margin: 0 auto 2rem; line-height: 1.6; }
-
-  .projects-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-  .project-card {
-    display: block; text-decoration: none;
-    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 1.4rem; transition: all 0.2s; position: relative; overflow: hidden;
-  }
-  .project-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,229,255,0.08); }
-  .project-card .proj-name { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; }
-  .project-card .proj-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.5; margin-bottom: 1rem; min-height: 2.5rem; }
-  .project-card .proj-meta { display: flex; align-items: center; justify-content: space-between; }
-  .proj-count { font-family: var(--mono); font-size: 0.68rem; color: var(--accent); letter-spacing: 1px; }
-  .proj-arrow { font-family: var(--mono); color: var(--muted); font-size: 0.85rem; transition: transform 0.2s; }
-  .project-card:hover .proj-arrow { transform: translate(3px,-3px); color: var(--text); }
-
-  .new-card {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: transparent; border: 1px dashed var(--border); border-radius: 12px;
-    padding: 1.4rem; text-decoration: none; transition: all 0.2s; min-height: 130px;
-    color: var(--muted); font-family: var(--mono); font-size: 0.75rem; letter-spacing: 1px; gap: 0.5rem;
-  }
-  .new-card:hover { border-color: var(--accent); color: var(--accent); }
-  .new-card .plus { font-size: 1.5rem; }
-
-  .empty-state { text-align: center; padding: 3rem 2rem; color: var(--muted); }
-  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+.hero{text-align:center;padding:3rem 0 3.5rem;}
+.hero-logo{font-family:var(--mono);font-size:clamp(2.5rem,8vw,5rem);font-weight:700;letter-spacing:-2px;line-height:1;margin-bottom:.8rem;}
+.hero-logo .c1{color:var(--accent);} .hero-logo .c2{color:var(--accent2);}
+.hero p{color:var(--muted);max-width:500px;margin:0 auto 2rem;line-height:1.7;font-size:.95rem;}
+.projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem;}
+.proj-card{display:block;text-decoration:none;background:var(--card);border:1px solid var(--border);
+  border-radius:12px;padding:1.4rem;transition:all .22s;position:relative;overflow:hidden;}
+.proj-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 24px rgba(99,102,241,.12);}
+.proj-card .pname{font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:.3rem;}
+.proj-card .pdesc{font-size:.8rem;color:var(--muted);line-height:1.5;margin-bottom:1rem;min-height:2.4rem;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.proj-meta{display:flex;align-items:center;justify-content:space-between;}
+.proj-owner{font-family:var(--mono);font-size:.62rem;color:var(--muted);}
+.proj-count{font-family:var(--mono);font-size:.68rem;color:var(--accent2);}
+.new-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:transparent;border:1px dashed var(--border);border-radius:12px;padding:1.4rem;
+  text-decoration:none;transition:all .2s;min-height:140px;color:var(--muted);
+  font-family:var(--mono);font-size:.72rem;letter-spacing:1px;gap:.5rem;}
+.new-card:hover{border-color:var(--accent2);color:var(--accent2);}
+.empty{text-align:center;padding:4rem 2rem;color:var(--muted);}
 </style>
-
 <div class="hero">
-  <div class="logo-big"><span class="c1">CHAIN</span>⟡<span class="c2">ML</span></div>
-  <p>Multi-project ML model registry backed by SQLite and per-project blockchains.</p>
+  <div class="hero-logo"><span class="c1">CHAIN</span>⬡<span class="c2">ML</span></div>
+  <p>Collaborative ML model registry. Every submission cryptographically hashed and anchored to the Ethereum blockchain.</p>
+  {% if not current_user %}
+  <div style="display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;">
+    <a href="/register" class="btn btn-primary">Get Started</a>
+    <a href="/login" class="btn btn-ghost">Login</a>
+  </div>
+  {% endif %}
 </div>
-
-<div class="page-header">
-  <div class="eyebrow">⟡ Your Projects</div>
-  <h1>Projects</h1>
-</div>
-
+<div class="ph"><div class="ph-eye">⬡ Public Registry</div><h1>All Projects</h1></div>
 {% if projects %}
 <div class="projects-grid">
   {% for p in projects %}
-  <a href="/project/{{ p.id }}" class="project-card">
-    <div class="proj-name">{{ p.name }}</div>
-    <div class="proj-desc">{{ p.description if p.description else 'No description.' }}</div>
+  <a href="/project/{{ p.id }}" class="proj-card">
+    <div class="pname">{{ p.name }}</div>
+    <div class="pdesc">{{ p.description or 'No description provided.' }}</div>
     <div class="proj-meta">
-      <span class="proj-count">{{ p.model_count }} model{{ 's' if p.model_count != 1 else '' }}</span>
-      <span class="proj-arrow">↗</span>
+      <span class="proj-owner">by {{ p.owner_name }}</span>
+      <span class="proj-count">{{ p.submission_count }} submission{{ 's' if p.submission_count != 1 else '' }}</span>
     </div>
   </a>
   {% endfor %}
-  <a href="/projects/new" class="new-card">
-    <span class="plus">＋</span>
-    <span>New Project</span>
-  </a>
+  {% if current_user %}
+  <a href="/projects/new" class="new-card"><span style="font-size:1.5rem">＋</span><span>New Project</span></a>
+  {% endif %}
 </div>
 {% else %}
-<div class="empty-state">
-  <div class="icon">🗂️</div>
-  <p style="margin-bottom:1.2rem">No projects yet. Create your first one to get started.</p>
-  <a href="/projects/new" class="btn btn-primary">+ Create Project</a>
+<div class="empty">
+  <div style="font-size:3rem;margin-bottom:1rem">🗂️</div>
+  <p style="margin-bottom:1.2rem">No projects yet.</p>
+  {% if current_user %}<a href="/projects/new" class="btn btn-primary">Create First Project</a>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

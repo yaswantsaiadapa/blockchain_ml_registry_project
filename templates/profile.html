@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}ChainML — Profile{% endblock %}
+{% block content %}
+<style>
+.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;}
+@media(max-width:700px){.profile-grid{grid-template-columns:1fr;}}
+.section-title{font-family:var(--mono);font-size:.63rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem;}
+.proj-mini{display:block;text-decoration:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;transition:all .2s;margin-bottom:.6rem;}
+.proj-mini:hover{border-color:var(--accent2);}
+.proj-mini .pn{font-weight:700;font-size:.9rem;color:var(--text);}
+.proj-mini .pc{font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:.2rem;}
+.sub-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;margin-bottom:.6rem;}
+.sub-row .sr-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;}
+.sub-row .sr-proj{font-weight:700;font-size:.88rem;color:var(--text);}
+.sub-row .sr-acc{font-family:var(--mono);font-weight:700;color:var(--green);}
+</style>
+<div class="ph"><div class="ph-eye">⬡ Account</div><h1>{{ current_user.username }}</h1><p>{{ current_user.email }}</p></div>
+<div class="profile-grid">
+  <div>
+    <div class="section-title">My Projects ({{ my_projects|length }})</div>
+    {% if my_projects %}
+    {% for p in my_projects %}
+    <a href="/project/{{ p.id }}" class="proj-mini">
+      <div class="pn">{{ p.name }}</div>
+      <div class="pc">{{ p.submission_count }} submission{{ 's' if p.submission_count != 1 else '' }}</div>
+    </a>
+    {% endfor %}
+    {% else %}
+    <div style="color:var(--muted);font-size:.85rem;padding:1rem 0;">No projects yet. <a href="/projects/new" style="color:var(--accent2);">Create one.</a></div>
+    {% endif %}
+    <div style="margin-top:1rem;"><a href="/projects/new" class="btn btn-primary btn-sm">+ New Project</a></div>
+  </div>
+  <div>
+    <div class="section-title">My Submissions ({{ my_submissions|length }})</div>
+    {% if my_submissions %}
+    {% for s in my_submissions %}
+    <div class="sub-row">
+      <div class="sr-top">
+        <a href="/project/{{ s.project_id }}" class="sr-proj" style="text-decoration:none;">{{ s.project_name }}</a>
+        <span class="sr-acc">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+        <span style="font-family:var(--mono);font-size:.62rem;color:var(--muted);">Block #{{ s.block_index }}</span>
+        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">🔗 {% if s.eth_mode=='real' %}Sepolia{% else %}Mock{% endif %}</a>
+        {% if s.eth_mode=='mock' %}<span class="badge badge-mock">mock</span>{% else %}<span class="badge badge-green">live</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color:var(--muted);font-size:.85rem;padding:1rem 0;">No submissions yet. Browse projects to contribute.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
