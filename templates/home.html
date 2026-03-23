@@ -4,16 +4,16 @@
 <style>
 .hero{text-align:center;padding:3rem 0 3.5rem;}
 .hero-logo{font-family:var(--mono);font-size:clamp(2.5rem,8vw,5rem);font-weight:700;letter-spacing:-2px;line-height:1;margin-bottom:.8rem;}
-.hero-logo .c1{color:var(--accent);} .hero-logo .c2{color:var(--accent2);}
+.hero-logo .c1{color:var(--accent);}.hero-logo .c2{color:var(--accent2);}
 .hero p{color:var(--muted);max-width:500px;margin:0 auto 2rem;line-height:1.7;font-size:.95rem;}
 .projects-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:1rem;}
 .proj-card{display:block;text-decoration:none;background:var(--card);border:1px solid var(--border);
   border-radius:12px;padding:1.4rem;transition:all .22s;position:relative;overflow:hidden;}
 .proj-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 24px rgba(99,102,241,.12);}
 .proj-card .pname{font-size:1.05rem;font-weight:700;color:var(--text);margin-bottom:.3rem;}
-.proj-card .pdesc{font-size:.8rem;color:var(--muted);line-height:1.5;margin-bottom:1rem;min-height:2.4rem;
+.proj-card .pdesc{font-size:.8rem;color:var(--muted);line-height:1.5;margin-bottom:.8rem;min-height:2.4rem;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.proj-meta{display:flex;align-items:center;justify-content:space-between;}
+.proj-meta{display:flex;align-items:center;justify-content:space-between;margin-top:.5rem;}
 .proj-owner{font-family:var(--mono);font-size:.62rem;color:var(--muted);}
 .proj-count{font-family:var(--mono);font-size:.68rem;color:var(--accent2);}
 .new-card{display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -21,13 +21,17 @@
   text-decoration:none;transition:all .2s;min-height:140px;color:var(--muted);
   font-family:var(--mono);font-size:.72rem;letter-spacing:1px;gap:.5rem;}
 .new-card:hover{border-color:var(--accent2);color:var(--accent2);}
-.empty{text-align:center;padding:4rem 2rem;color:var(--muted);}
+.task-tag{font-family:var(--mono);font-size:.58rem;letter-spacing:1px;text-transform:uppercase;
+  padding:.15rem .45rem;border-radius:3px;margin-right:.4rem;}
+.tag-cls{background:rgba(99,102,241,.12);color:#a5b4fc;}
+.tag-reg{background:rgba(168,85,247,.12);color:#d8b4fe;}
+.has-test{font-family:var(--mono);font-size:.58rem;color:var(--green);margin-left:.3rem;}
 </style>
 <div class="hero">
   <div class="hero-logo"><span class="c1">CHAIN</span>⬡<span class="c2">ML</span></div>
-  <p>Collaborative ML model registry. Every submission cryptographically hashed and anchored to the Ethereum blockchain.</p>
+  <p>Collaborative ML registry. Every submission cryptographically hashed and anchored to the Ethereum blockchain. Accuracy is server-verified — nobody can fake it.</p>
   {% if not current_user %}
-  <div style="display:flex;gap:.8rem;justify-content:center;flex-wrap:wrap;">
+  <div style="display:flex;gap:.8rem;justify-content:center;">
     <a href="/register" class="btn btn-primary">Get Started</a>
     <a href="/login" class="btn btn-ghost">Login</a>
   </div>
@@ -38,8 +42,14 @@
 <div class="projects-grid">
   {% for p in projects %}
   <a href="/project/{{ p.id }}" class="proj-card">
+    <div style="display:flex;align-items:center;margin-bottom:.4rem;">
+      <span class="task-tag {% if p.task_type=='regression' %}tag-reg{% else %}tag-cls{% endif %}">
+        {{ p.task_type or 'classification' }}
+      </span>
+      {% if p.test_path %}<span class="has-test">🔒 hidden test</span>{% endif %}
+    </div>
     <div class="pname">{{ p.name }}</div>
-    <div class="pdesc">{{ p.description or 'No description provided.' }}</div>
+    <div class="pdesc">{{ p.description or 'No description.' }}</div>
     <div class="proj-meta">
       <span class="proj-owner">by {{ p.owner_name }}</span>
       <span class="proj-count">{{ p.submission_count }} submission{{ 's' if p.submission_count != 1 else '' }}</span>
@@ -51,7 +61,7 @@
   {% endif %}
 </div>
 {% else %}
-<div class="empty">
+<div style="text-align:center;padding:4rem 2rem;color:var(--muted);">
   <div style="font-size:3rem;margin-bottom:1rem">🗂️</div>
   <p style="margin-bottom:1.2rem">No projects yet.</p>
   {% if current_user %}<a href="/projects/new" class="btn btn-primary">Create First Project</a>{% endif %}

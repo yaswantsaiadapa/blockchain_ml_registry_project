@@ -1,20 +1,27 @@
 {% extends "base.html" %}
 {% block title %}ChainML — New Project{% endblock %}
 {% block content %}
-<style>.wrap{max-width:560px;}</style>
-<div class="wrap">
+<div style="max-width:580px;">
   <div class="ph"><div class="ph-eye">⬡ Create</div><h1>New Project</h1>
-  <p>Upload a preprocessed CSV dataset. Others will download it and submit trained models.</p></div>
+  <p>Upload a preprocessed CSV. Others download it and submit trained models.</p></div>
   {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
   <div class="card">
     <form method="POST" enctype="multipart/form-data">
       <div class="fg"><label>Project Name</label>
-        <input class="input" type="text" name="name" placeholder="e.g. Iris Classifier, Fraud Detection" value="{{ request.form.get('name','') }}" required autofocus></div>
+        <input class="input" type="text" name="name" placeholder="e.g. Iris Classifier, House Price Predictor" required autofocus></div>
       <div class="fg"><label>Description</label>
-        <textarea class="input" name="description" placeholder="Describe the problem, dataset, and goal...">{{ request.form.get('description','') }}</textarea></div>
-      <div class="fg"><label>Dataset CSV</label>
+        <textarea class="input" name="description" placeholder="Describe the problem, dataset columns, and goal..."></textarea></div>
+      <div class="fg"><label>Task Type</label>
+        <select class="input" name="task_type">
+          <option value="classification">Classification — predict a category (accuracy, F1, ROC-AUC)</option>
+          <option value="regression">Regression — predict a number (RMSE, R²)</option>
+        </select></div>
+      <div class="fg"><label>Training Dataset (CSV) *</label>
         <input class="input" type="file" name="dataset" accept=".csv" required>
-        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">⚠ Last column must be the target/label. Max 50 MB. Must be preprocessed (no missing values).</p></div>
+        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">Last column must be the target. No missing values. Max 50MB.</p></div>
+      <div class="fg"><label>Hidden Test Set (CSV) — optional but recommended</label>
+        <input class="input" type="file" name="test_dataset" accept=".csv">
+        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">🔒 Contributors never see this file. Models are evaluated on it secretly. Same columns as training set.</p></div>
       <div style="display:flex;gap:.8rem;margin-top:.5rem;">
         <button type="submit" class="btn btn-primary">Create Project</button>
         <a href="/" class="btn btn-ghost">Cancel</a>

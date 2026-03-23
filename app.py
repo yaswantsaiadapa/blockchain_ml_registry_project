@@ -1,8 +1,8 @@
-import os, sys, time, uuid, re
+import os, sys, time, uuid, json
 sys.path.insert(0, os.path.dirname(__file__))
 
 from flask import (Flask, render_template, request, redirect,
-                   url_for, session, send_file, g)
+                   url_for, session, send_file, g, jsonify)
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -20,7 +20,7 @@ from ethereum import anchor_to_ethereum
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
-app.config["MAX_CONTENT_LENGTH"] = 150 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 
 init_db()
 
@@ -101,18 +101,15 @@ def logout():
 # ── HOME ───────────────────────────────────────────────────────────────────────
 @app.route("/")
 def home():
-    projects = get_all_projects()
-    return render_template("home.html", projects=projects)
+    return render_template("home.html", projects=get_all_projects())
 
 # ── PROFILE ────────────────────────────────────────────────────────────────────
 @app.route("/profile")
 @login_required
 def profile():
-    my_projects    = get_user_projects(g.user["id"])
-    my_submissions = get_user_submissions(g.user["id"])
     return render_template("profile.html",
-                           my_projects=my_projects,
-                           my_submissions=my_submissions)
+        my_projects=get_user_projects(g.user["id"]),
+        my_submissions=get_user_submissions(g.user["id"]))
 
 # ── CREATE PROJECT ─────────────────────────────────────────────────────────────
 @app.route("/projects/new", methods=["GET","POST"])
@@ -120,13 +117,16 @@ def profile():
 def new_project():
     error = None
     if request.method == "POST":
-        name        = request.form.get("name","").strip()
-        description = request.form.get("description","").strip()
+        name         = request.form.get("name","").strip()
+        description  = request.form.get("description","").strip()
+        task_type    = request.form.get("task_type","classification")
         dataset_file = request.files.get("dataset")
+        test_file    = request.files.get("test_dataset")
+
         if not name:
             error = "Project name is required."
         elif not dataset_file or dataset_file.filename == "":
-            error = "Please upload a CSV dataset."
+            error = "Please upload a training CSV dataset."
         elif not dataset_file.filename.lower().endswith(".csv"):
             error = "Only .csv files are accepted."
         else:
@@ -134,17 +134,36 @@ def new_project():
             size_mb = dataset_file.tell() / (1024*1024)
             dataset_file.seek(0)
             if size_mb > MAX_DATASET_MB:
-                error = f"File exceeds {MAX_DATASET_MB}MB limit."
+                error = f"Training file exceeds {MAX_DATASET_MB}MB limit."
             else:
                 fname        = safe_name(dataset_file.filename)
                 dataset_path = os.path.join(DATASETS_DIR, f"{uuid.uuid4().hex}_{fname}")
                 dataset_file.save(dataset_path)
-                ok, msg = create_project(g.user["id"], name, description, dataset_path, fname)
+                dataset_hash = hash_file(dataset_path)
+
+                # optional hidden test set
+                test_path = None; test_name = None
+                if test_file and test_file.filename and test_file.filename.lower().endswith(".csv"):
+                    test_file.seek(0, 2)
+                    test_mb = test_file.tell() / (1024*1024)
+                    test_file.seek(0)
+                    if test_mb <= MAX_DATASET_MB:
+                        tname     = safe_name(test_file.filename)
+                        test_path = os.path.join(DATASETS_DIR, f"test_{uuid.uuid4().hex}_{tname}")
+                        test_file.save(test_path)
+                        test_name = tname
+
+                ok, msg = create_project(g.user["id"], name, description,
+                                         dataset_path, fname, dataset_hash,
+                                         task_type, test_path, test_name)
                 if ok:
                     return redirect(url_for("home"))
-                error = msg
                 try: os.remove(dataset_path)
                 except: pass
+                if test_path:
+                    try: os.remove(test_path)
+                    except: pass
+                error = msg
     return render_template("new_project.html", error=error)
 
 # ── PROJECT DETAIL ─────────────────────────────────────────────────────────────
@@ -156,8 +175,7 @@ def project_detail(pid):
     best = submissions[0] if submissions else None
     is_owner = g.user and g.user["id"] == project["owner_id"]
     return render_template("project_detail.html",
-                           project=project, submissions=submissions,
-                           best=best, is_owner=is_owner)
+        project=project, submissions=submissions, best=best, is_owner=is_owner)
 
 # ── DOWNLOAD DATASET ───────────────────────────────────────────────────────────
 @app.route("/project/<int:pid>/download")
@@ -180,9 +198,8 @@ def delete_project_route(pid):
         submissions = get_project_submissions(pid)
         best = submissions[0] if submissions else None
         return render_template("project_detail.html",
-                               project=project, submissions=submissions,
-                               best=best, is_owner=True,
-                               delete_error=f"Cannot delete — {outside} other user(s) have submitted models.")
+            project=project, submissions=submissions, best=best, is_owner=True,
+            delete_error=f"Cannot delete — {outside} other user(s) have submitted models.")
     delete_project(pid)
     return redirect(url_for("home"))
 
@@ -192,10 +209,12 @@ def delete_project_route(pid):
 def submit_model(pid):
     project = get_project(pid)
     if not project: return render_template("404.html"), 404
-    error = None
-    result = None
+    error = result = None
+
     if request.method == "POST":
         model_file = request.files.get("model")
+        model_card = request.form.get("model_card","").strip()
+
         if not model_file or model_file.filename == "":
             error = "Please upload a .pkl model file."
         elif not model_file.filename.lower().endswith(".pkl"):
@@ -213,34 +232,59 @@ def submit_model(pid):
                 model_path = os.path.join(proj_dir, f"{uuid.uuid4().hex}_{fname}")
                 model_file.save(model_path)
 
-                # Evaluate
-                eval_result = evaluate_model(model_path, project["dataset_path"])
+                task      = project.get("task_type","classification")
+                test_path = project.get("test_path")
+
+                eval_result = evaluate_model(model_path, project["dataset_path"],
+                                             task=task, test_path=test_path)
+
                 if eval_result["status"] == "error":
                     error = f"Evaluation failed: {eval_result['message']}"
                     try: os.remove(model_path)
                     except: pass
                 else:
-                    accuracy      = eval_result["accuracy"]
-                    model_hash    = hash_file(model_path)
-                    timestamp     = time.time()
-                    previous_hash = get_latest_submission_hash(pid)
-                    block_index   = get_next_block_index(pid)
-                    c_hash        = combined_submission_hash(
-                                        model_hash, accuracy, g.user["username"],
-                                        pid, timestamp, previous_hash)
+                    # verify dataset hasn't been tampered
+                    current_ds_hash = hash_file(project["dataset_path"])
+                    ds_ok = (current_ds_hash == project.get("dataset_hash",""))
+
+                    accuracy   = eval_result["accuracy"]
+                    model_hash = hash_file(model_path)
+                    timestamp  = time.time()
+                    prev_hash  = get_latest_submission_hash(pid)
+                    blk_idx    = get_next_block_index(pid)
+                    c_hash     = combined_submission_hash(
+                                     model_hash, accuracy, g.user["username"],
+                                     pid, timestamp, prev_hash)
                     eth_tx, eth_url, eth_mode = anchor_to_ethereum(c_hash, pid)
-                    save_submission(pid, g.user["id"], fname, model_path, model_hash,
-                                    accuracy, c_hash, eth_tx, eth_url, eth_mode,
-                                    block_index, previous_hash,timestamp)
+
+                    save_submission(
+                        pid, g.user["id"], fname, model_path, model_hash,
+                        accuracy, c_hash, eth_tx, eth_url, eth_mode,
+                        blk_idx, prev_hash, timestamp,
+                        f1_score   = eval_result.get("f1_score"),
+                        roc_auc    = eval_result.get("roc_auc"),
+                        rmse       = eval_result.get("rmse"),
+                        r2_score   = eval_result.get("r2_score"),
+                        model_card = model_card,
+                    )
+
                     result = {
-                        "accuracy": accuracy,
-                        "model_hash": model_hash,
+                        "accuracy":    accuracy,
+                        "f1_score":    eval_result.get("f1_score"),
+                        "roc_auc":     eval_result.get("roc_auc"),
+                        "rmse":        eval_result.get("rmse"),
+                        "r2_score":    eval_result.get("r2_score"),
+                        "model_hash":  model_hash,
                         "eth_tx_hash": eth_tx,
-                        "eth_tx_url": eth_url,
-                        "eth_mode": eth_mode,
-                        "block_index": block_index,
-                        "method": eval_result.get("method","subprocess"),
+                        "eth_tx_url":  eth_url,
+                        "eth_mode":    eth_mode,
+                        "block_index": blk_idx,
+                        "method":      eval_result.get("method","subprocess"),
+                        "task":        task,
+                        "ds_verified": ds_ok,
+                        "used_test":   bool(test_path and os.path.exists(test_path or "")),
                     }
+
     return render_template("submit.html", project=project, error=error, result=result)
 
 # ── CHAIN VIEW ─────────────────────────────────────────────────────────────────
@@ -251,10 +295,11 @@ def chain_view(pid):
     subs = sorted(get_project_submissions(pid), key=lambda x: x["block_index"])
     valid, msg = True, "Chain is valid ✓"
     for sub in subs:
-        recheck = combined_submission_hash(sub["model_hash"], sub["verified_accuracy"],
-    sub["username"], pid, sub["submitted_at"], sub["previous_hash"])
+        recheck = combined_submission_hash(
+            sub["model_hash"], sub["verified_accuracy"],
+            sub["username"], pid, sub["submitted_at"], sub["previous_hash"])
         if recheck != sub["combined_hash"]:
-            valid, msg = False, f"Block #{sub['block_index']} hash mismatch!"; break
+            valid, msg = False, f"Block #{sub['block_index']} hash mismatch — tampered!"; break
     return render_template("chain.html", project=project, submissions=subs,
         chain_valid=valid, chain_msg=msg)
 
@@ -269,17 +314,31 @@ def verify(pid):
         sid = request.form.get("submission_id","")
         if sid:
             sub = get_submission(int(sid))
-            if sub and os.path.exists(sub["model_path"]):
+            if sub and os.path.exists(sub.get("model_path","")):
                 current_hash = hash_file(sub["model_path"])
+                # also verify dataset
+                ds_hash_ok = None
+                if project.get("dataset_hash"):
+                    ds_hash_ok = (hash_file(project["dataset_path"]) == project["dataset_hash"])
                 if current_hash == sub["model_hash"]:
-                    result = {"status": "valid", "sub": sub, "hash": current_hash}
+                    result = {"status":"valid","sub":sub,
+                              "hash":current_hash,"ds_hash_ok":ds_hash_ok}
                 else:
-                    result = {"status": "tampered", "sub": sub,
-                              "stored_hash": sub["model_hash"], "current_hash": current_hash}
+                    result = {"status":"tampered","sub":sub,
+                              "stored_hash":sub["model_hash"],
+                              "current_hash":current_hash,"ds_hash_ok":ds_hash_ok}
             else:
-                result = {"status": "error", "message": "Submission or model file not found."}
+                result = {"status":"error","message":"Submission or model file not found."}
     return render_template("verify.html", project=project,
                            submissions=submissions, result=result)
+
+# ── LEADERBOARD ────────────────────────────────────────────────────────────────
+@app.route("/project/<int:pid>/leaderboard")
+def leaderboard(pid):
+    project = get_project(pid)
+    if not project: return render_template("404.html"), 404
+    return render_template("leaderboard.html", project=project,
+        submissions=get_project_submissions(pid))
 
 # ── SUBMISSION DETAIL ──────────────────────────────────────────────────────────
 @app.route("/submission/<int:sid>")
@@ -289,14 +348,86 @@ def submission_detail(sid):
     project = get_project(sub["project_id"])
     return render_template("submission_detail.html", sub=sub, project=project)
 
-@app.route("/project/<int:pid>/leaderboard")
-def leaderboard(pid):
+# ── API — VERIFY SUBMISSION ────────────────────────────────────────────────────
+@app.route("/api/submission/<int:sid>/verify")
+def api_verify_submission(sid):
+    sub = get_submission(sid)
+    if not sub:
+        return jsonify({"error": "Submission not found"}), 404
+    if not os.path.exists(sub.get("model_path","")):
+        return jsonify({"error": "Model file not found on server"}), 404
+    current_hash = hash_file(sub["model_path"])
+    intact = current_hash == sub["model_hash"]
+    project = get_project(sub["project_id"])
+    ds_hash_ok = None
+    if project and project.get("dataset_hash"):
+        ds_hash_ok = (hash_file(project["dataset_path"]) == project["dataset_hash"])
+    return jsonify({
+        "submission_id":    sid,
+        "project":          sub["project_name"],
+        "user":             sub["username"],
+        "block_index":      sub["block_index"],
+        "verified_accuracy":sub["verified_accuracy"],
+        "f1_score":         sub.get("f1_score"),
+        "roc_auc":          sub.get("roc_auc"),
+        "model_hash_stored":sub["model_hash"],
+        "model_hash_now":   current_hash,
+        "model_intact":     intact,
+        "dataset_intact":   ds_hash_ok,
+        "eth_tx_hash":      sub["eth_tx_hash"],
+        "eth_tx_url":       sub["eth_tx_url"],
+        "eth_mode":         sub["eth_mode"],
+        "submitted_at":     sub["submitted_at"],
+    })
+
+@app.route("/api/project/<int:pid>/best")
+def api_project_best(pid):
     project = get_project(pid)
     if not project:
-        return render_template("404.html"), 404
-    return render_template("leaderboard.html", project=project,
-        submissions=get_project_submissions(pid))
+        return jsonify({"error": "Project not found"}), 404
+    subs = get_project_submissions(pid)
+    if not subs:
+        return jsonify({"project_id": pid, "best": None})
+    best = subs[0]
+    return jsonify({
+        "project_id":    pid,
+        "project_name":  project["name"],
+        "task_type":     project.get("task_type","classification"),
+        "best": {
+            "submission_id":     best["id"],
+            "user":              best["username"],
+            "verified_accuracy": best["verified_accuracy"],
+            "f1_score":          best.get("f1_score"),
+            "roc_auc":           best.get("roc_auc"),
+            "block_index":       best["block_index"],
+            "eth_tx_hash":       best["eth_tx_hash"],
+            "eth_tx_url":        best["eth_tx_url"],
+            "eth_mode":          best["eth_mode"],
+        }
+    })
 
+@app.route("/api/project/<int:pid>/leaderboard")
+def api_project_leaderboard(pid):
+    project = get_project(pid)
+    if not project:
+        return jsonify({"error": "Project not found"}), 404
+    subs = get_project_submissions(pid)
+    return jsonify({
+        "project_id":   pid,
+        "project_name": project["name"],
+        "task_type":    project.get("task_type","classification"),
+        "submissions": [{
+            "rank":              i+1,
+            "submission_id":     s["id"],
+            "user":              s["username"],
+            "verified_accuracy": s["verified_accuracy"],
+            "f1_score":          s.get("f1_score"),
+            "roc_auc":           s.get("roc_auc"),
+            "block_index":       s["block_index"],
+            "eth_tx_url":        s["eth_tx_url"],
+            "eth_mode":          s["eth_mode"],
+        } for i, s in enumerate(subs)]
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000, use_reloader=False)

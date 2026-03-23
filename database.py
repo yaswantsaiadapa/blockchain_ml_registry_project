@@ -22,6 +22,10 @@ def init_db():
         description TEXT DEFAULT '',
         dataset_path TEXT NOT NULL,
         dataset_name TEXT NOT NULL,
+        dataset_hash TEXT NOT NULL DEFAULT '',
+        test_path TEXT DEFAULT NULL,
+        test_name TEXT DEFAULT NULL,
+        task_type TEXT NOT NULL DEFAULT 'classification',
         created_at REAL NOT NULL,
         FOREIGN KEY(owner_id) REFERENCES users(id))""")
     c.execute("""CREATE TABLE IF NOT EXISTS submissions (
@@ -32,6 +36,11 @@ def init_db():
         model_path TEXT NOT NULL,
         model_hash TEXT NOT NULL,
         verified_accuracy REAL NOT NULL,
+        f1_score REAL DEFAULT NULL,
+        roc_auc REAL DEFAULT NULL,
+        rmse REAL DEFAULT NULL,
+        r2_score REAL DEFAULT NULL,
+        model_card TEXT DEFAULT '',
         combined_hash TEXT NOT NULL,
         eth_tx_hash TEXT NOT NULL,
         eth_tx_url TEXT NOT NULL,
@@ -41,8 +50,35 @@ def init_db():
         submitted_at REAL NOT NULL,
         FOREIGN KEY(project_id) REFERENCES projects(id),
         FOREIGN KEY(user_id) REFERENCES users(id))""")
+    # migrate existing DBs — add new columns if missing
+    _migrate(conn)
     conn.commit(); conn.close()
 
+def _migrate(conn):
+    """Add new columns to existing databases without breaking them."""
+    existing_proj = [r[1] for r in conn.execute("PRAGMA table_info(projects)").fetchall()]
+    existing_sub  = [r[1] for r in conn.execute("PRAGMA table_info(submissions)").fetchall()]
+    proj_cols = {
+        "dataset_hash": "TEXT NOT NULL DEFAULT ''",
+        "test_path":    "TEXT DEFAULT NULL",
+        "test_name":    "TEXT DEFAULT NULL",
+        "task_type":    "TEXT NOT NULL DEFAULT 'classification'",
+    }
+    sub_cols = {
+        "f1_score":   "REAL DEFAULT NULL",
+        "roc_auc":    "REAL DEFAULT NULL",
+        "rmse":       "REAL DEFAULT NULL",
+        "r2_score":   "REAL DEFAULT NULL",
+        "model_card": "TEXT DEFAULT ''",
+    }
+    for col, typedef in proj_cols.items():
+        if col not in existing_proj:
+            conn.execute(f"ALTER TABLE projects ADD COLUMN {col} {typedef}")
+    for col, typedef in sub_cols.items():
+        if col not in existing_sub:
+            conn.execute(f"ALTER TABLE submissions ADD COLUMN {col} {typedef}")
+
+# ── USERS ─────────────────────────────────────────────────────────────────────
 def create_user(username, email, pw_hash):
     conn = get_conn()
     try:
@@ -69,11 +105,18 @@ def get_user_by_email(e):
     row = conn.execute("SELECT * FROM users WHERE email=?", (e.strip().lower(),)).fetchone()
     conn.close(); return dict(row) if row else None
 
-def create_project(owner_id, name, description, dataset_path, dataset_name):
+# ── PROJECTS ──────────────────────────────────────────────────────────────────
+def create_project(owner_id, name, description, dataset_path, dataset_name,
+                   dataset_hash, task_type='classification',
+                   test_path=None, test_name=None):
     conn = get_conn()
     try:
-        conn.execute("INSERT INTO projects (owner_id,name,description,dataset_path,dataset_name,created_at) VALUES (?,?,?,?,?,?)",
-                     (owner_id, name.strip(), description.strip(), dataset_path, dataset_name, time.time()))
+        conn.execute("""INSERT INTO projects
+            (owner_id,name,description,dataset_path,dataset_name,
+             dataset_hash,task_type,test_path,test_name,created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (owner_id, name.strip(), description.strip(), dataset_path, dataset_name,
+             dataset_hash, task_type, test_path, test_name, time.time()))
         conn.commit(); return True, None
     except sqlite3.IntegrityError:
         return False, "A project with that name already exists."
@@ -82,7 +125,8 @@ def create_project(owner_id, name, description, dataset_path, dataset_name):
 
 def get_all_projects():
     conn = get_conn()
-    rows = conn.execute("""SELECT p.*, u.username AS owner_name, COUNT(s.id) AS submission_count
+    rows = conn.execute("""SELECT p.*, u.username AS owner_name,
+        COUNT(s.id) AS submission_count
         FROM projects p JOIN users u ON p.owner_id=u.id
         LEFT JOIN submissions s ON s.project_id=p.id
         GROUP BY p.id ORDER BY p.created_at DESC""").fetchall()
@@ -100,19 +144,23 @@ def delete_project(pid):
         try:
             if os.path.exists(r["model_path"]): os.remove(r["model_path"])
         except: pass
-    proj = conn.execute("SELECT dataset_path FROM projects WHERE id=?", (pid,)).fetchone()
-    if proj and os.path.exists(proj["dataset_path"]):
-        try: os.remove(proj["dataset_path"])
-        except: pass
+    proj = conn.execute("SELECT dataset_path,test_path FROM projects WHERE id=?", (pid,)).fetchone()
+    if proj:
+        for p in [proj["dataset_path"], proj["test_path"]]:
+            if p and os.path.exists(p):
+                try: os.remove(p)
+                except: pass
     conn.execute("DELETE FROM submissions WHERE project_id=?", (pid,))
     conn.execute("DELETE FROM projects WHERE id=?", (pid,))
     conn.commit(); conn.close()
 
 def count_outside_submissions(pid, owner_id):
     conn = get_conn()
-    row = conn.execute("SELECT COUNT(*) AS cnt FROM submissions WHERE project_id=? AND user_id!=?", (pid, owner_id)).fetchone()
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM submissions WHERE project_id=? AND user_id!=?",
+                       (pid, owner_id)).fetchone()
     conn.close(); return row["cnt"] if row else 0
 
+# ── SUBMISSIONS ───────────────────────────────────────────────────────────────
 def get_project_submissions(pid):
     conn = get_conn()
     rows = conn.execute("""SELECT s.*, u.username FROM submissions s
@@ -122,7 +170,8 @@ def get_project_submissions(pid):
 
 def get_latest_submission_hash(pid):
     conn = get_conn()
-    row = conn.execute("SELECT combined_hash FROM submissions WHERE project_id=? ORDER BY block_index DESC LIMIT 1", (pid,)).fetchone()
+    row = conn.execute("SELECT combined_hash FROM submissions WHERE project_id=? ORDER BY block_index DESC LIMIT 1",
+                       (pid,)).fetchone()
     conn.close()
     if row: return row["combined_hash"]
     import hashlib, json
@@ -135,15 +184,17 @@ def get_next_block_index(pid):
 
 def save_submission(project_id, user_id, model_filename, model_path, model_hash,
                     verified_accuracy, combined_hash, eth_tx_hash, eth_tx_url,
-                    eth_mode, block_index, previous_hash, submitted_at):  # ← add submitted_at
+                    eth_mode, block_index, previous_hash, submitted_at,
+                    f1_score=None, roc_auc=None, rmse=None, r2_score=None, model_card=''):
     conn = get_conn()
     conn.execute("""INSERT INTO submissions
         (project_id,user_id,model_filename,model_path,model_hash,verified_accuracy,
+         f1_score,roc_auc,rmse,r2_score,model_card,
          combined_hash,eth_tx_hash,eth_tx_url,eth_mode,block_index,previous_hash,submitted_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (project_id, user_id, model_filename, model_path, model_hash, verified_accuracy,
-         combined_hash, eth_tx_hash, eth_tx_url, eth_mode, block_index, previous_hash,
-         submitted_at))  # ← use passed value, not time.time()
+         f1_score, roc_auc, rmse, r2_score, model_card,
+         combined_hash, eth_tx_hash, eth_tx_url, eth_mode, block_index, previous_hash, submitted_at))
     conn.commit(); conn.close()
 
 def get_submission(sid):

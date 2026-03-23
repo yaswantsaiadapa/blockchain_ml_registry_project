@@ -12,42 +12,45 @@
 {% endblock %}
 {% block content %}
 <style>
-.rank-icon{font-size:1.1rem;}
-.acc-bar-wrap{width:100px;background:var(--border);border-radius:4px;height:6px;display:inline-block;vertical-align:middle;margin-left:.5rem;}
+.acc-bar-wrap{width:80px;background:var(--border);border-radius:4px;height:6px;display:inline-block;vertical-align:middle;margin-left:.5rem;}
 .acc-bar{height:6px;border-radius:4px;background:var(--green);}
 </style>
 <div class="ph"><div class="ph-eye">⬡ {{ project.name }}</div><h1>Leaderboard</h1>
-<p>Ranked by server-verified accuracy. All submissions anchored to Ethereum.</p></div>
+<p>Ranked by server-verified score. All submissions anchored to Ethereum.
+{% if project.test_path %} · 🔒 Evaluated on hidden test set.{% endif %}</p></div>
 {% if submissions %}
 <div class="card">
   <table class="tbl">
-    <thead><tr><th>Rank</th><th>User</th><th>Accuracy</th><th>Block</th><th>Ethereum Proof</th><th>Submitted</th></tr></thead>
+    <thead><tr>
+      <th>Rank</th><th>User</th>
+      {% if project.task_type=='regression' %}<th>R²</th><th>RMSE</th>
+      {% else %}<th>Accuracy</th><th>F1</th><th>ROC-AUC</th>{% endif %}
+      <th>Block</th><th>Ethereum</th><th>Model Card</th>
+    </tr></thead>
     <tbody>
     {% for s in submissions %}
     <tr>
-      <td>
-        {% if loop.index == 1 %}<span class="rank-icon">🥇</span>
-        {% elif loop.index == 2 %}<span class="rank-icon">🥈</span>
-        {% elif loop.index == 3 %}<span class="rank-icon">🥉</span>
-        {% else %}<span style="font-family:var(--mono);color:var(--muted);font-size:.78rem">#{{ loop.index }}</span>{% endif %}
-      </td>
+      <td>{% if loop.index==1 %}🥇{% elif loop.index==2 %}🥈{% elif loop.index==3 %}🥉{% else %}<span style="font-family:var(--mono);color:var(--muted);font-size:.78rem">#{{ loop.index }}</span>{% endif %}</td>
       <td><strong>{{ s.username }}</strong></td>
-      <td>
-        <span style="font-family:var(--mono);font-weight:700;color:var(--green);">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span>
-        <span class="acc-bar-wrap"><span class="acc-bar" style="width:{{ s.verified_accuracy*100 }}%;"></span></span>
-      </td>
-      <td><span style="font-family:var(--mono);font-size:.72rem;color:var(--muted);">#{{ s.block_index }}</span></td>
-      <td>
-        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">
-          {% if s.eth_mode == 'real' %}🔗 Sepolia{% else %}🔗 Mock{% endif %}
-        </a>
-        {% if s.eth_mode == 'mock' %}<span class="badge badge-mock" style="margin-left:.3rem">mock</span>{% endif %}
-      </td>
-      <td style="font-family:var(--mono);font-size:.68rem;color:var(--muted);">{{ s.submitted_at|int }}</td>
+      {% if project.task_type=='regression' %}
+      <td><span style="font-family:var(--mono);font-weight:700;color:var(--green);">{{ s.r2_score if s.r2_score is not none else '—' }}</span></td>
+      <td><span style="font-family:var(--mono);color:var(--muted);">{{ s.rmse if s.rmse is not none else '—' }}</span></td>
+      {% else %}
+      <td><span style="font-family:var(--mono);font-weight:700;color:var(--green);">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span>
+        <span class="acc-bar-wrap"><span class="acc-bar" style="width:{{ s.verified_accuracy*100 }}%"></span></span></td>
+      <td><span style="font-family:var(--mono);color:var(--muted);">{{ s.f1_score if s.f1_score is not none else '—' }}</span></td>
+      <td><span style="font-family:var(--mono);color:var(--muted);">{{ s.roc_auc if s.roc_auc is not none else '—' }}</span></td>
+      {% endif %}
+      <td><span style="font-family:var(--mono);font-size:.72rem;color:var(--muted)">#{{ s.block_index }}</span></td>
+      <td><a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">{% if s.eth_mode=='real' %}🔗 Live{% else %}🔗 Mock{% endif %}</a></td>
+      <td><span style="font-size:.78rem;color:var(--muted);">{% if s.model_card %}{{ s.model_card[:40] }}{% if s.model_card|length > 40 %}…{% endif %}{% else %}—{% endif %}</span></td>
     </tr>
     {% endfor %}
     </tbody>
   </table>
+</div>
+<div style="margin-top:1rem;font-family:var(--mono);font-size:.65rem;color:var(--muted);">
+  API: <a href="/api/project/{{ project.id }}/leaderboard" target="_blank" style="color:var(--accent2);">/api/project/{{ project.id }}/leaderboard</a>
 </div>
 {% else %}
 <div style="text-align:center;padding:3rem;color:var(--muted);">

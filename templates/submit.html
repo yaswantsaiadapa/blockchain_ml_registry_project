@@ -14,64 +14,61 @@
 <style>
 .submit-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start;}
 @media(max-width:680px){.submit-grid{grid-template-columns:1fr;}}
-.step-list{display:flex;flex-direction:column;gap:.65rem;margin-bottom:1.3rem;}
-.step-row{display:flex;align-items:center;gap:.7rem;font-size:.8rem;color:var(--muted);}
-.sn{width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--border);
-  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.62rem;flex-shrink:0;}
-.step-row.done .sn{background:var(--green);border-color:var(--green);color:#000;font-weight:700;}
-.step-row.done{color:var(--text);}
 .result-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem;animation:fadeUp .35s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .acc-big{text-align:center;padding:1.5rem 0 1rem;}
 .acc-big .num{font-family:var(--mono);font-size:3.5rem;font-weight:700;color:var(--green);display:block;line-height:1;}
 .acc-big .lbl{font-family:var(--mono);font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);}
 .rrow{display:flex;justify-content:space-between;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.83rem;}
-.rrow:last-of-type{border-bottom:none;}
-.rk{color:var(--muted);font-family:var(--mono);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;}
+.rrow:last-of-type{border-bottom:none;} .rk{color:var(--muted);font-family:var(--mono);font-size:.68rem;letter-spacing:1px;text-transform:uppercase;}
 .rv{color:var(--text);font-weight:600;text-align:right;}
-.blk-badge{display:inline-flex;align-items:center;gap:.4rem;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);
-  color:#a5b4fc;padding:.25rem .65rem;border-radius:20px;font-family:var(--mono);font-size:.68rem;margin-bottom:.8rem;}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin:.8rem 0;}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.7rem;text-align:center;}
+.mcard .mv{font-family:var(--mono);font-size:1.1rem;font-weight:700;color:var(--accent2);}
+.mcard .mk{font-family:var(--mono);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-top:.2rem;}
 </style>
 <div class="ph"><div class="ph-eye">⬡ {{ project.name }}</div><h1>Submit Model</h1>
-<p>Train a model locally on the dataset, save it as .pkl, then upload here for evaluation.</p></div>
+<p>Task: <strong>{{ project.task_type or 'classification' }}</strong>
+{% if project.test_path %} · 🔒 Hidden test set active — your model will be evaluated on data you never saw{% endif %}</p></div>
 {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
 <div style="margin-bottom:1.5rem;">
-  <a href="/project/{{ project.id }}/download" class="btn btn-cyan btn-sm">⬇ Download Dataset First</a>
+  <a href="/project/{{ project.id }}/download" class="btn btn-cyan btn-sm">⬇ Download Training Dataset</a>
 </div>
 <div class="submit-grid">
   <div class="card">
-    <div class="step-list">
-      <div class="step-row {% if result %}done{% endif %}"><div class="sn">{% if result %}✓{% else %}1{% endif %}</div>Download & train model locally</div>
-      <div class="step-row {% if result %}done{% endif %}"><div class="sn">{% if result %}✓{% else %}2{% endif %}</div>Save as model.pkl</div>
-      <div class="step-row {% if result %}done{% endif %}"><div class="sn">{% if result %}✓{% else %}3{% endif %}</div>Upload here — server evaluates</div>
-      <div class="step-row {% if result %}done{% endif %}"><div class="sn">{% if result %}✓{% else %}4{% endif %}</div>Hash anchored to Ethereum</div>
-    </div>
     <form method="POST" enctype="multipart/form-data">
       <div class="fg"><label>Model File (.pkl)</label>
         <input class="input" type="file" name="model" accept=".pkl" required></div>
+      <div class="fg"><label>Model Card — describe your approach</label>
+        <textarea class="input" name="model_card" placeholder="Algorithm: RandomForest&#10;Hyperparameters: n_estimators=100, max_depth=5&#10;Preprocessing: StandardScaler&#10;Notes: trained on full training set"></textarea></div>
       <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">⚡ Submit &amp; Evaluate</button>
     </form>
     <div style="margin-top:1.2rem;padding-top:1.2rem;border-top:1px solid var(--border);">
       <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.5rem;">Quick Train Example</div>
-      <div class="hash" style="padding:.7rem;">from sklearn.ensemble import RandomForestClassifier<br>import pandas as pd, pickle<br>df = pd.read_csv("dataset.csv")<br>X = df.iloc[:,:-1]; y = df.iloc[:,-1]<br>model = RandomForestClassifier().fit(X,y)<br>pickle.dump(model, open("model.pkl","wb"))</div>
+      <div class="hash" style="padding:.7rem;line-height:1.7;">{% if project.task_type=='regression' %}from sklearn.ensemble import GradientBoostingRegressor<br>import pandas as pd, pickle<br>df = pd.read_csv("dataset.csv")<br>X=df.iloc[:,:-1]; y=df.iloc[:,-1]<br>model=GradientBoostingRegressor().fit(X,y)<br>pickle.dump(model,open("model.pkl","wb")){% else %}from sklearn.ensemble import RandomForestClassifier<br>import pandas as pd, pickle<br>df = pd.read_csv("dataset.csv")<br>X=df.iloc[:,:-1]; y=df.iloc[:,-1]<br>model=RandomForestClassifier().fit(X,y)<br>pickle.dump(model,open("model.pkl","wb")){% endif %}</div>
     </div>
   </div>
   <div>
     {% if result %}
     <div class="result-card">
-      <div class="blk-badge">⛓ Block #{{ result.block_index }} recorded</div>
+      <div style="display:inline-flex;align-items:center;gap:.4rem;background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.25);color:#a5b4fc;padding:.25rem .65rem;border-radius:20px;font-family:var(--mono);font-size:.68rem;margin-bottom:.8rem;">⛓ Block #{{ result.block_index }} recorded</div>
       <div class="acc-big">
-        <span class="num">{{ "%.0f"|format(result.accuracy*100) }}%</span>
-        <span class="lbl">Server-Verified Accuracy</span>
+        <span class="num">{% if result.task=='regression' %}{{ "%.3f"|format(result.r2_score or result.accuracy) }}{% else %}{{ "%.0f"|format(result.accuracy*100) }}%{% endif %}</span>
+        <span class="lbl">{% if result.task=='regression' %}R² Score{% else %}Accuracy{% endif %} · Server Verified</span>
+      </div>
+      <div class="metrics-grid">
+        {% if result.f1_score is not none %}<div class="mcard"><div class="mv">{{ result.f1_score }}</div><div class="mk">F1 Score</div></div>{% endif %}
+        {% if result.roc_auc is not none %}<div class="mcard"><div class="mv">{{ result.roc_auc }}</div><div class="mk">ROC-AUC</div></div>{% endif %}
+        {% if result.rmse is not none %}<div class="mcard"><div class="mv">{{ result.rmse }}</div><div class="mk">RMSE</div></div>{% endif %}
+        {% if result.r2_score is not none %}<div class="mcard"><div class="mv">{{ result.r2_score }}</div><div class="mk">R² Score</div></div>{% endif %}
       </div>
       <div class="rrow"><span class="rk">Evaluation</span><span class="rv">{{ result.method }}</span></div>
-      <div class="rrow"><span class="rk">Ethereum</span>
-        <span class="rv">{% if result.eth_mode=='real' %}<span class="badge badge-green">Live Sepolia</span>{% else %}<span class="badge badge-mock">Mock Demo</span>{% endif %}</span>
-      </div>
+      <div class="rrow"><span class="rk">Test Set</span><span class="rv">{% if result.used_test %}🔒 Hidden{% else %}80/20 split{% endif %}</span></div>
+      <div class="rrow"><span class="rk">Dataset Integrity</span><span class="rv">{% if result.ds_verified %}✅ Verified{% else %}⚠️ Changed{% endif %}</span></div>
+      <div class="rrow"><span class="rk">Ethereum</span><span class="rv">{% if result.eth_mode=='real' %}<span class="badge badge-green">Live Sepolia</span>{% else %}<span class="badge badge-mock">Mock Demo</span>{% endif %}</span></div>
       <div class="hash-lbl">Model SHA-256</div><div class="hash">{{ result.model_hash }}</div>
-      <div class="hash-lbl">Combined Block Hash</div><div class="hash">{{ result.comb_hash }}</div>
       <div style="margin-top:1rem;">
-        <a href="{{ result.eth_url }}" target="_blank" class="eth-link" style="display:block;justify-content:center;">🔗 View on Etherscan{% if result.eth_mode=='mock' %} (mock){% endif %}</a>
+        <a href="{{ result.eth_tx_url }}" target="_blank" class="eth-link" style="display:block;justify-content:center;">🔗 View on Etherscan{% if result.eth_mode=='mock' %} (mock){% endif %}</a>
       </div>
       <div style="margin-top:.8rem;display:flex;gap:.6rem;flex-wrap:wrap;">
         <a href="/project/{{ project.id }}/leaderboard" class="btn btn-ghost btn-sm">Leaderboard</a>
@@ -81,7 +78,7 @@
     {% else %}
     <div class="card" style="border-style:dashed;text-align:center;padding:3rem 1.5rem;">
       <div style="font-size:2.5rem;margin-bottom:.8rem;">🧠</div>
-      <p style="color:var(--muted);font-size:.83rem;line-height:1.6;">Upload your .pkl to see results.<br>Accuracy is server-verified — you cannot fake it.</p>
+      <p style="color:var(--muted);font-size:.83rem;line-height:1.6;">Upload your .pkl and fill in the model card.<br>Server evaluates accuracy — you cannot fake it.</p>
     </div>
     {% endif %}
   </div>

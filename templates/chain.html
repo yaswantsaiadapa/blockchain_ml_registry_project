@@ -15,90 +15,81 @@
 .validity{display:flex;align-items:center;gap:.8rem;padding:.85rem 1.1rem;border-radius:8px;margin-bottom:1.8rem;font-family:var(--mono);font-size:.78rem;}
 .validity.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);color:var(--green);}
 .validity.bad{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:var(--red);}
-.chain-wrap{display:flex;flex-direction:column;gap:0;}
 .chain-link-line{display:flex;align-items:center;justify-content:center;height:28px;position:relative;color:var(--muted);font-family:var(--mono);font-size:.62rem;}
 .chain-link-line::before{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:linear-gradient(to bottom,var(--border),var(--accent2),var(--border));}
 .chain-link-line span{background:var(--bg);padding:0 .5rem;z-index:1;position:relative;}
-.blk{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.blk{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0;}
 .blk-hdr{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
 .blk-idx{font-family:var(--mono);font-size:.65rem;color:var(--accent2);font-weight:700;letter-spacing:2px;}
-.blk-who{font-weight:600;font-size:.9rem;}
 .blk-acc{font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--green);}
 .blk-toggle{font-family:var(--mono);color:var(--muted);font-size:.72rem;transition:transform .2s;}
 .blk.open .blk-toggle{transform:rotate(180deg);}
 .blk-body{max-height:0;overflow:hidden;transition:max-height .3s ease;}
-.blk.open .blk-body{max-height:500px;}
+.blk.open .blk-body{max-height:600px;}
 .blk-inner{padding:1.2rem;}
 .dg{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.5rem;margin-bottom:.8rem;}
 .dk{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.15rem;}
 .dv{font-size:.83rem;color:var(--text);}
 </style>
 <div class="ph"><div class="ph-eye">⬡ {{ project.name }}</div><h1>Blockchain</h1>
-<p>Each submission is a block. Hashes loaded from SQLite, proofs anchored to Ethereum.</p></div>
-
+<p>Each submission is a block. Hashes anchored to Ethereum Sepolia.</p></div>
 <div class="validity {% if chain_valid %}ok{% else %}bad{% endif %}">
   <span>{% if chain_valid %}✅{% else %}⚠️{% endif %}</span>
   <span>{{ chain_msg }}</span>
   <span style="margin-left:auto;color:var(--muted)">{{ submissions|length + 1 }} blocks (incl. genesis)</span>
 </div>
-
-{% if not submissions %}
-<div style="text-align:center;padding:3rem;color:var(--muted);">
-  <div style="font-size:2.5rem;margin-bottom:.8rem">⛓</div>
-  <p>Genesis block only. <a href="/project/{{ project.id }}/submit" style="color:var(--accent2);">Submit a model</a> to add blocks.</p>
-</div>
-{% endif %}
-
-<div class="chain-wrap">
-  <!-- Genesis block -->
+<div>
   <div class="blk" id="blk-0">
     <div class="blk-hdr" onclick="toggle(0)">
-      <div><div class="blk-idx">BLOCK #0 — GENESIS</div><div class="blk-who">System</div></div>
+      <div><div class="blk-idx">BLOCK #0 — GENESIS</div><div style="font-weight:600">System</div></div>
       <div class="blk-toggle">▼</div>
     </div>
     <div class="blk-body"><div class="blk-inner">
-      <p style="color:var(--muted);font-size:.83rem;">The genesis block anchors this project's chain. No model data.</p>
+      <p style="color:var(--muted);font-size:.83rem;">Genesis block. Project created. Dataset SHA-256 recorded.</p>
+      {% if project.dataset_hash %}
+      <div class="hash-lbl">Dataset SHA-256</div>
+      <div class="hash">{{ project.dataset_hash }}</div>
+      {% endif %}
     </div></div>
   </div>
-
   {% for s in submissions %}
   <div class="chain-link-line"><span>▲ PREV HASH ▼</span></div>
   <div class="blk open" id="blk-{{ s.block_index }}">
     <div class="blk-hdr" onclick="toggle({{ s.block_index }})">
       <div>
         <div class="blk-idx">BLOCK #{{ s.block_index }}</div>
-        <div class="blk-who">{{ s.username }} · {{ s.model_filename[:24] }}…</div>
+        <div style="font-weight:600">{{ s.username }} · {{ s.model_filename[:28] }}{% if s.model_filename|length > 28 %}…{% endif %}</div>
       </div>
-      <div class="blk-acc">{{ "%.0f"|format(s.verified_accuracy*100) }}%</div>
+      <div class="blk-acc">{{ "%.1f"|format(s.verified_accuracy*100) }}{% if project.task_type=='regression' %}R²{% else %}%{% endif %}</div>
       <div class="blk-toggle">▼</div>
     </div>
     <div class="blk-body"><div class="blk-inner">
       <div class="dg">
         <div><div class="dk">User</div><div class="dv">{{ s.username }}</div></div>
-        <div><div class="dk">Accuracy</div><div class="dv" style="color:var(--green);">{{ s.verified_accuracy }}</div></div>
-        <div><div class="dk">Block Index</div><div class="dv">#{{ s.block_index }}</div></div>
-        <div><div class="dk">Ethereum</div><div class="dv">
-          {% if s.eth_mode=='real' %}<span class="badge badge-green">Live Sepolia</span>
-          {% else %}<span class="badge badge-mock">Mock Demo</span>{% endif %}
-        </div></div>
+        <div><div class="dk">Score</div><div class="dv" style="color:var(--green)">{{ s.verified_accuracy }}</div></div>
+        {% if s.f1_score is not none %}<div><div class="dk">F1</div><div class="dv">{{ s.f1_score }}</div></div>{% endif %}
+        {% if s.roc_auc is not none %}<div><div class="dk">ROC-AUC</div><div class="dv">{{ s.roc_auc }}</div></div>{% endif %}
+        {% if s.rmse is not none %}<div><div class="dk">RMSE</div><div class="dv">{{ s.rmse }}</div></div>{% endif %}
+        <div><div class="dk">Block</div><div class="dv">#{{ s.block_index }}</div></div>
+        <div><div class="dk">Ethereum</div><div class="dv">{% if s.eth_mode=='real' %}<span class="badge badge-green">Live Sepolia</span>{% else %}<span class="badge badge-mock">Mock</span>{% endif %}</div></div>
       </div>
-      <div class="hash-lbl">Combined Block Hash (on Ethereum)</div>
-      <div class="hash">{{ s.combined_hash }}</div>
-      <div class="hash-lbl">Previous Block Hash</div>
-      <div class="hash">{{ s.previous_hash }}</div>
-      <div class="hash-lbl">Model File SHA-256</div>
-      <div class="hash">{{ s.model_hash }}</div>
+      {% if s.model_card %}
+      <div class="hash-lbl">Model Card</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;font-size:.8rem;color:var(--muted);white-space:pre-wrap;">{{ s.model_card }}</div>
+      {% endif %}
+      <div class="hash-lbl">Combined Block Hash (on Ethereum)</div><div class="hash">{{ s.combined_hash }}</div>
+      <div class="hash-lbl">Previous Block Hash</div><div class="hash">{{ s.previous_hash }}</div>
+      <div class="hash-lbl">Model File SHA-256</div><div class="hash">{{ s.model_hash }}</div>
       <div style="margin-top:.9rem;">
-        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">
-          🔗 {% if s.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan Link (mock demo){% endif %}
-        </a>
+        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">🔗 {% if s.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan (mock demo){% endif %}</a>
       </div>
     </div></div>
   </div>
   {% endfor %}
+  {% if not submissions %}
+  <div class="chain-link-line"><span>▲ PREV HASH ▼</span></div>
+  <div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No submissions yet. <a href="/project/{{ project.id }}/submit" style="color:var(--accent2);">Submit a model</a> to add blocks.</div>
+  {% endif %}
 </div>
-
-<script>
-function toggle(idx){document.getElementById('blk-'+idx).classList.toggle('open');}
-</script>
+<script>function toggle(idx){document.getElementById('blk-'+idx).classList.toggle('open');}</script>
 {% endblock %}

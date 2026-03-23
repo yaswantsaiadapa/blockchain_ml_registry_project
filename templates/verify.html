@@ -21,45 +21,43 @@
 .verdict.missing{background:rgba(99,102,241,.07);border:2px solid var(--accent);}
 .verdict-ico{font-size:3.5rem;display:block;margin-bottom:.8rem;}
 .verdict-txt{font-family:var(--mono);font-size:1rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:.6rem;}
-.verdict.valid .verdict-txt{color:var(--green);}
-.verdict.tampered .verdict-txt{color:var(--red);}
-.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:1.1rem;text-align:left;}
-.mi{background:rgba(0,0,0,.2);border-radius:6px;padding:.6rem .8rem;}
-.mk{font-family:var(--mono);font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);}
-.mv{font-size:.83rem;color:var(--text);margin-top:.15rem;}
+.verdict.valid .verdict-txt{color:var(--green);} .verdict.tampered .verdict-txt{color:var(--red);}
+.ds-check{display:flex;align-items:center;gap:.5rem;padding:.6rem .9rem;border-radius:6px;margin-top:.8rem;font-family:var(--mono);font-size:.72rem;}
+.ds-ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);color:var(--green);}
+.ds-fail{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:var(--red);}
 </style>
 <div class="ph"><div class="ph-eye">⬡ {{ project.name }}</div><h1>Verify Submission</h1>
-<p>Recompute a model's SHA-256 hash and compare it against the stored blockchain record.</p></div>
+<p>Recompute SHA-256 hash and compare against the blockchain record. Dataset integrity is also checked.</p></div>
 <div class="verify-grid">
   <div class="card">
     <form method="POST">
-      <div class="fg">
-        <label>Select Submission</label>
+      <div class="fg"><label>Select Submission</label>
         {% if submissions %}
         <select class="input" name="submission_id">
           <option value="">— choose a submission —</option>
           {% for s in submissions %}
           <option value="{{ s.id }}" {% if request.form.get('submission_id')|string == s.id|string %}selected{% endif %}>
-            #{{ s.block_index }} · {{ s.username }} · {{ "%.1f"|format(s.verified_accuracy*100) }}%
+            #{{ s.block_index }} · {{ s.username }} · {{ "%.1f"|format(s.verified_accuracy*100) }}{% if project.task_type=='regression' %}R²{% else %}%{% endif %}
           </option>
           {% endfor %}
         </select>
         {% else %}
-        <div style="padding:.9rem;border:1px dashed var(--border);border-radius:6px;color:var(--muted);font-size:.83rem;text-align:center;">
-          No submissions yet. <a href="/project/{{ project.id }}/submit" style="color:var(--accent2);">Submit first.</a>
-        </div>
+        <div style="padding:.9rem;border:1px dashed var(--border);border-radius:6px;color:var(--muted);font-size:.83rem;text-align:center;">No submissions yet.</div>
         {% endif %}
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;" {% if not submissions %}disabled{% endif %}>🔍 Verify Integrity</button>
     </form>
     <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border);">
-      <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem;">How It Works</div>
-      {% for step in ["Load .pkl file from disk","Recompute SHA-256 hash","Compare to stored hash in DB","Cross-check against Ethereum tx"] %}
-      <div style="display:flex;gap:.7rem;padding:.55rem 0;border-bottom:1px solid var(--border);align-items:center;">
+      <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.7rem;">What Gets Checked</div>
+      {% for step in ["Reload .pkl from disk","Recompute SHA-256","Compare to stored hash","Check dataset SHA-256 unchanged","Cross-reference Ethereum tx"] %}
+      <div style="display:flex;gap:.7rem;padding:.5rem 0;border-bottom:1px solid var(--border);align-items:center;">
         <div style="width:20px;height:20px;border-radius:50%;background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.2);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.6rem;color:var(--accent2);flex-shrink:0;">{{ loop.index }}</div>
         <div style="font-size:.8rem;color:var(--muted);">{{ step }}</div>
       </div>
       {% endfor %}
+      <div style="margin-top:.8rem;font-family:var(--mono);font-size:.62rem;color:var(--muted);">
+        API endpoint: <a href="/api/submission/1/verify" style="color:var(--accent2);">/api/submission/&lt;id&gt;/verify</a>
+      </div>
     </div>
   </div>
   <div>
@@ -68,35 +66,32 @@
       <div class="verdict valid">
         <span class="verdict-ico">✅</span>
         <div class="verdict-txt">Model Valid</div>
-        <p style="color:var(--muted);font-size:.83rem;">Hash matches — file is untampered.</p>
-        <div class="meta-grid">
-          <div class="mi"><div class="mk">User</div><div class="mv">{{ result.sub.username }}</div></div>
-          <div class="mi"><div class="mk">Accuracy</div><div class="mv" style="color:var(--green)">{{ result.sub.verified_accuracy }}</div></div>
-          <div class="mi"><div class="mk">Block</div><div class="mv">#{{ result.sub.block_index }}</div></div>
-          <div class="mi"><div class="mk">Ethereum</div><div class="mv">
-            {% if result.sub.eth_mode=='real' %}<span class="badge badge-green">Live</span>
-            {% else %}<span class="badge badge-mock">Mock</span>{% endif %}
-          </div></div>
+        <p style="color:var(--muted);font-size:.83rem;">File is untampered. Hash matches blockchain record.</p>
+        {% if result.ds_hash_ok is not none %}
+        <div class="ds-check {% if result.ds_hash_ok %}ds-ok{% else %}ds-fail{% endif %}">
+          {% if result.ds_hash_ok %}✅ Dataset also unchanged{% else %}⚠️ Dataset hash mismatch!{% endif %}
         </div>
+        {% endif %}
         <div class="hash-lbl" style="text-align:left">Verified Hash</div>
-        <div class="hash">{{ result.current_hash }}</div>
+        <div class="hash">{{ result.hash }}</div>
         <div style="margin-top:.9rem;"><a href="{{ result.sub.eth_tx_url }}" target="_blank" class="eth-link" style="display:block;justify-content:center;">🔗 View Ethereum Proof</a></div>
+        <div style="margin-top:.6rem;font-family:var(--mono);font-size:.65rem;color:var(--muted);">
+          API: <a href="/api/submission/{{ result.sub.id }}/verify" target="_blank" style="color:var(--accent2);">/api/submission/{{ result.sub.id }}/verify</a>
+        </div>
       </div>
       {% elif result.status == 'tampered' %}
       <div class="verdict tampered">
         <span class="verdict-ico">⚠️</span>
         <div class="verdict-txt">Tampered!</div>
         <p style="color:var(--muted);font-size:.83rem;">Current hash does not match blockchain record.</p>
-        <div class="hash-lbl" style="text-align:left;margin-top:1rem;">Current Hash (mismatch)</div>
-        <div class="hash">{{ result.current_hash }}</div>
-        <div class="hash-lbl" style="text-align:left">Original Stored Hash</div>
-        <div class="hash">{{ result.sub.model_hash }}</div>
+        <div class="hash-lbl" style="text-align:left;margin-top:1rem;">Current Hash</div><div class="hash">{{ result.current_hash }}</div>
+        <div class="hash-lbl" style="text-align:left">Original Stored Hash</div><div class="hash">{{ result.stored_hash }}</div>
       </div>
-      {% elif result.status == 'missing' %}
+      {% else %}
       <div class="verdict missing">
         <span class="verdict-ico">❓</span>
-        <div class="verdict-txt">File Missing</div>
-        <p style="color:var(--muted);font-size:.83rem;">Model file not found on server disk.</p>
+        <div class="verdict-txt">Not Found</div>
+        <p style="color:var(--muted);font-size:.83rem;">{{ result.message }}</p>
       </div>
       {% endif %}
     {% else %}
