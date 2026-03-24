@@ -1,95 +1,191 @@
 {% extends "base.html" %}
 {% block title %}ChainML — Chain | {{ project.name }}{% endblock %}
 {% block subnav %}
-<div class="subnav">
+<div class="chainml-subnav">
   <div class="subnav-label">PROJECT / <span>{{ project.name }}</span></div>
-  <a href="/project/{{ project.id }}">Overview</a>
-  <a href="/project/{{ project.id }}/submit">Submit</a>
-  <a href="/project/{{ project.id }}/leaderboard">Leaderboard</a>
-  <a href="/project/{{ project.id }}/chain" class="active">Chain</a>
-  <a href="/project/{{ project.id }}/verify">Verify</a>
+  <a href="/project/{{ project.id }}" class="subnav-tab">Overview</a>
+  <a href="/project/{{ project.id }}/submit" class="subnav-tab">Submit</a>
+  <a href="/project/{{ project.id }}/leaderboard" class="subnav-tab">Leaderboard</a>
+  <a href="/project/{{ project.id }}/chain" class="subnav-tab active">Chain</a>
+  <a href="/project/{{ project.id }}/verify" class="subnav-tab">Verify</a>
 </div>
 {% endblock %}
 {% block content %}
 <style>
-.validity{display:flex;align-items:center;gap:.8rem;padding:.85rem 1.1rem;border-radius:8px;margin-bottom:1.8rem;font-family:var(--mono);font-size:.78rem;}
-.validity.ok{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.25);color:var(--green);}
-.validity.bad{background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.25);color:var(--red);}
-.chain-link-line{display:flex;align-items:center;justify-content:center;height:28px;position:relative;color:var(--muted);font-family:var(--mono);font-size:.62rem;}
-.chain-link-line::before{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:linear-gradient(to bottom,var(--border),var(--accent2),var(--border));}
-.chain-link-line span{background:var(--bg);padding:0 .5rem;z-index:1;position:relative;}
-.blk{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0;}
-.blk-hdr{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1.2rem;background:var(--surface);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;}
-.blk-idx{font-family:var(--mono);font-size:.65rem;color:var(--accent2);font-weight:700;letter-spacing:2px;}
-.blk-acc{font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--green);}
-.blk-toggle{font-family:var(--mono);color:var(--muted);font-size:.72rem;transition:transform .2s;}
-.blk.open .blk-toggle{transform:rotate(180deg);}
-.blk-body{max-height:0;overflow:hidden;transition:max-height .3s ease;}
-.blk.open .blk-body{max-height:600px;}
-.blk-inner{padding:1.2rem;}
-.dg{display:grid;grid-template-columns:1fr 1fr;gap:.7rem 1.5rem;margin-bottom:.8rem;}
-.dk{font-family:var(--mono);font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.15rem;}
-.dv{font-size:.83rem;color:var(--text);}
+.chain-status-bar {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  padding: .9rem 1.2rem;
+  border-radius: 10px;
+  margin-bottom: 2rem;
+  font-family: var(--raj);
+  font-size: .8rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.chain-status-bar.ok  { background: rgba(16,185,129,.07); border: 1px solid rgba(16,185,129,.25); color: #6ee7b7; }
+.chain-status-bar.bad { background: rgba(239,68,68,.07);  border: 1px solid rgba(239,68,68,.25);  color: #fca5a5; }
+
+.chain-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  position: relative;
+  color: var(--muted);
+  font-family: var(--raj);
+  font-size: .62rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.chain-connector::before {
+  content: '';
+  position: absolute;
+  left: 50%; top: 0;
+  width: 1px; height: 100%;
+  background: linear-gradient(to bottom, var(--border2), var(--gold), var(--border2));
+}
+.chain-connector span { background: var(--bg); padding: 0 .6rem; position: relative; z-index: 1; }
+
+.blk-card {
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 0;
+  transition: border-color .2s;
+}
+.blk-card.open { border-color: rgba(240,180,41,.3); }
+
+.blk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.3rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: background .2s;
+}
+.blk-header:hover { background: rgba(240,180,41,.03); }
+.blk-num { font-family: var(--orb); font-size: .62rem; color: var(--gold); font-weight: 700; letter-spacing: 2px; }
+.blk-score { font-family: var(--orb); font-size: 1.05rem; font-weight: 700; color: var(--green); }
+.blk-chevron { color: var(--muted); font-size: .85rem; transition: transform .25s; }
+.blk-card.open .blk-chevron { transform: rotate(180deg); }
+
+.blk-body { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+.blk-card.open .blk-body { max-height: 700px; }
+.blk-inner { padding: 1.3rem; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem 2rem; margin-bottom: 1rem; }
+.dk { font-family: var(--raj); font-size: .6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: .15rem; }
+.dv { font-size: .85rem; color: var(--text); }
 </style>
-<div class="ph"><div class="ph-eye">⬡ {{ project.name }}</div><h1>Blockchain</h1>
-<p>Each submission is a block. Hashes anchored to Ethereum Sepolia.</p></div>
-<div class="validity {% if chain_valid %}ok{% else %}bad{% endif %}">
-  <span>{% if chain_valid %}✅{% else %}⚠️{% endif %}</span>
-  <span>{{ chain_msg }}</span>
-  <span style="margin-left:auto;color:var(--muted)">{{ submissions|length + 1 }} blocks (incl. genesis)</span>
+
+<div class="ph">
+  <div class="ph-eye">Blockchain Explorer</div>
+  <h1>{{ project.name }}</h1>
+  <p>Each submission is an immutable block. Hashes anchored to Ethereum Sepolia.</p>
 </div>
-<div>
-  <div class="blk" id="blk-0">
-    <div class="blk-hdr" onclick="toggle(0)">
-      <div><div class="blk-idx">BLOCK #0 — GENESIS</div><div style="font-weight:600">System</div></div>
-      <div class="blk-toggle">▼</div>
+
+<div class="chain-status-bar {% if chain_valid %}ok{% else %}bad{% endif %}">
+  {% if chain_valid %}
+  <i class="bi bi-shield-check-fill fs-5"></i>
+  <span>{{ chain_msg }}</span>
+  {% else %}
+  <i class="bi bi-shield-exclamation fs-5"></i>
+  <span>{{ chain_msg }}</span>
+  {% endif %}
+  <span class="ms-auto" style="color:var(--muted);font-size:.72rem">{{ submissions|length + 1 }} blocks including genesis</span>
+</div>
+
+<!-- Genesis -->
+<div class="blk-card" id="blk-0">
+  <div class="blk-header" onclick="toggle(0)">
+    <div>
+      <div class="blk-num"><i class="bi bi-stars me-1"></i>BLOCK #0 — GENESIS</div>
+      <div style="font-weight:600;font-size:.9rem;margin-top:.2rem">System · Project Created</div>
     </div>
-    <div class="blk-body"><div class="blk-inner">
-      <p style="color:var(--muted);font-size:.83rem;">Genesis block. Project created. Dataset SHA-256 recorded.</p>
+    <div class="d-flex align-items-center gap-2">
+      <span class="cml-badge badge-blue">Genesis</span>
+      <i class="bi bi-chevron-down blk-chevron"></i>
+    </div>
+  </div>
+  <div class="blk-body">
+    <div class="blk-inner">
+      <p style="color:var(--text2);font-size:.85rem;margin-bottom:.8rem">Project genesis block. Dataset hash recorded at creation time.</p>
       {% if project.dataset_hash %}
       <div class="hash-lbl">Dataset SHA-256</div>
-      <div class="hash">{{ project.dataset_hash }}</div>
+      <div class="hash-box">{{ project.dataset_hash }}</div>
       {% endif %}
-    </div></div>
-  </div>
-  {% for s in submissions %}
-  <div class="chain-link-line"><span>▲ PREV HASH ▼</span></div>
-  <div class="blk open" id="blk-{{ s.block_index }}">
-    <div class="blk-hdr" onclick="toggle({{ s.block_index }})">
-      <div>
-        <div class="blk-idx">BLOCK #{{ s.block_index }}</div>
-        <div style="font-weight:600">{{ s.username }} · {{ s.model_filename[:28] }}{% if s.model_filename|length > 28 %}…{% endif %}</div>
-      </div>
-      <div class="blk-acc">{{ "%.1f"|format(s.verified_accuracy*100) }}{% if project.task_type=='regression' %}R²{% else %}%{% endif %}</div>
-      <div class="blk-toggle">▼</div>
     </div>
-    <div class="blk-body"><div class="blk-inner">
-      <div class="dg">
+  </div>
+</div>
+
+{% for s in submissions %}
+<div class="chain-connector"><span><i class="bi bi-arrow-down"></i> PREV HASH</span></div>
+<div class="blk-card open" id="blk-{{ s.block_index }}">
+  <div class="blk-header" onclick="toggle({{ s.block_index }})">
+    <div>
+      <div class="blk-num"><i class="bi bi-box-seam me-1"></i>BLOCK #{{ s.block_index }}</div>
+      <div style="font-weight:600;font-size:.9rem;margin-top:.2rem">
+        {{ s.username }} · <span style="color:var(--muted);font-size:.8rem">{{ s.model_filename[:30] }}{% if s.model_filename|length > 30 %}…{% endif %}</span>
+      </div>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="blk-score">{{ "%.1f"|format(s.verified_accuracy*100) }}{% if project.task_type=='regression' %}R²{% else %}%{% endif %}</span>
+      {% if s.eth_mode=='real' %}
+      <span class="cml-badge badge-live"><i class="bi bi-broadcast"></i> Live</span>
+      {% else %}
+      <span class="cml-badge badge-mock">Mock</span>
+      {% endif %}
+      <i class="bi bi-chevron-down blk-chevron"></i>
+    </div>
+  </div>
+  <div class="blk-body">
+    <div class="blk-inner">
+      <div class="detail-grid">
         <div><div class="dk">User</div><div class="dv">{{ s.username }}</div></div>
         <div><div class="dk">Score</div><div class="dv" style="color:var(--green)">{{ s.verified_accuracy }}</div></div>
-        {% if s.f1_score is not none %}<div><div class="dk">F1</div><div class="dv">{{ s.f1_score }}</div></div>{% endif %}
+        {% if s.f1_score is not none %}<div><div class="dk">F1 Score</div><div class="dv">{{ s.f1_score }}</div></div>{% endif %}
         {% if s.roc_auc is not none %}<div><div class="dk">ROC-AUC</div><div class="dv">{{ s.roc_auc }}</div></div>{% endif %}
         {% if s.rmse is not none %}<div><div class="dk">RMSE</div><div class="dv">{{ s.rmse }}</div></div>{% endif %}
-        <div><div class="dk">Block</div><div class="dv">#{{ s.block_index }}</div></div>
-        <div><div class="dk">Ethereum</div><div class="dv">{% if s.eth_mode=='real' %}<span class="badge badge-green">Live Sepolia</span>{% else %}<span class="badge badge-mock">Mock</span>{% endif %}</div></div>
+        <div><div class="dk">Block Index</div><div class="dv" style="color:var(--gold)">#{{ s.block_index }}</div></div>
       </div>
       {% if s.model_card %}
       <div class="hash-lbl">Model Card</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.6rem .8rem;font-size:.8rem;color:var(--muted);white-space:pre-wrap;">{{ s.model_card }}</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:7px;padding:.7rem .9rem;font-size:.82rem;color:var(--text2);white-space:pre-wrap;margin-bottom:.8rem">{{ s.model_card }}</div>
       {% endif %}
-      <div class="hash-lbl">Combined Block Hash (on Ethereum)</div><div class="hash">{{ s.combined_hash }}</div>
-      <div class="hash-lbl">Previous Block Hash</div><div class="hash">{{ s.previous_hash }}</div>
-      <div class="hash-lbl">Model File SHA-256</div><div class="hash">{{ s.model_hash }}</div>
-      <div style="margin-top:.9rem;">
-        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">🔗 {% if s.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan (mock demo){% endif %}</a>
+      <div class="hash-lbl">Combined Block Hash (on Ethereum)</div>
+      <div class="hash-box">{{ s.combined_hash }}</div>
+      <div class="hash-lbl">Previous Block Hash</div>
+      <div class="hash-box">{{ s.previous_hash }}</div>
+      <div class="hash-lbl">Model File SHA-256</div>
+      <div class="hash-box">{{ s.model_hash }}</div>
+      <div class="mt-3">
+        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">
+          <i class="bi bi-box-arrow-up-right"></i>
+          {% if s.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan (mock demo){% endif %}
+        </a>
       </div>
-    </div></div>
+    </div>
   </div>
-  {% endfor %}
-  {% if not submissions %}
-  <div class="chain-link-line"><span>▲ PREV HASH ▼</span></div>
-  <div style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;">No submissions yet. <a href="/project/{{ project.id }}/submit" style="color:var(--accent2);">Submit a model</a> to add blocks.</div>
-  {% endif %}
 </div>
-<script>function toggle(idx){document.getElementById('blk-'+idx).classList.toggle('open');}</script>
+{% endfor %}
+
+{% if not submissions %}
+<div class="chain-connector"><span><i class="bi bi-arrow-down"></i> PREV HASH</span></div>
+<div class="text-center py-4" style="color:var(--text2);font-size:.9rem">
+  No submissions yet. <a href="/project/{{ project.id }}/submit" style="color:var(--gold)">Submit a model</a> to add blocks.
+</div>
+{% endif %}
+
+<script>
+function toggle(idx) {
+  const el = document.getElementById('blk-' + idx);
+  el.classList.toggle('open');
+}
+</script>
 {% endblock %}

@@ -1,16 +1,27 @@
 {% extends "base.html" %}
 {% block title %}ChainML — Login{% endblock %}
 {% block content %}
-<div style="max-width:420px;margin:2rem auto;">
-  <div class="ph"><div class="ph-eye">⬡ Access</div><h1>Login</h1></div>
-  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
-  <div class="card">
+<div style="max-width:460px;margin:2rem auto;">
+  <div class="ph"><div class="ph-eye">Access Portal</div><h1>Login</h1></div>
+  {% if error %}<div class="cml-alert cml-alert-error"><i class="bi bi-exclamation-triangle-fill"></i>{{ error }}</div>{% endif %}
+  <div class="cml-card">
     <form method="POST">
-      <div class="fg"><label>Username or Email</label><input class="input" type="text" name="identifier" value="{{ request.form.get('identifier','') }}" required autofocus></div>
-      <div class="fg"><label>Password</label><input class="input" type="password" name="password" required></div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Login</button>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-person me-1"></i>Username or Email</label>
+        <input class="cml-input" type="text" name="identifier" value="{{ request.form.get('identifier','') }}" required autofocus>
+      </div>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-lock me-1"></i>Password</label>
+        <input class="cml-input" type="password" name="password" required>
+      </div>
+      <button type="submit" class="cml-btn cml-btn-primary w-100 justify-content-center mt-1">
+        <i class="bi bi-box-arrow-in-right"></i> Login
+      </button>
     </form>
-    <p style="text-align:center;margin-top:1rem;font-size:.83rem;color:var(--muted);">No account? <a href="/register" style="color:var(--accent2);">Register</a></p>
+    <div class="glow-divider"></div>
+    <p style="text-align:center;font-size:.85rem;color:var(--text2)">
+      No account? <a href="/register" style="color:var(--blue2);text-decoration:none;font-weight:600">Register</a>
+    </p>
   </div>
 </div>
 {% endblock %}

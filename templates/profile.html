@@ -2,53 +2,82 @@
 {% block title %}ChainML — Profile{% endblock %}
 {% block content %}
 <style>
-.profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:2rem;}
-@media(max-width:700px){.profile-grid{grid-template-columns:1fr;}}
-.proj-mini{display:block;text-decoration:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;transition:all .2s;margin-bottom:.6rem;}
-.proj-mini:hover{border-color:var(--accent2);}
-.sub-row{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.9rem 1rem;margin-bottom:.6rem;}
+.profile-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; }
+@media(max-width:768px) { .profile-grid{grid-template-columns:1fr;} }
+.proj-tile {
+  display:block; text-decoration:none;
+  background:var(--surface); border:1px solid var(--border2); border-radius:10px;
+  padding:.95rem 1.1rem; transition:all .2s; margin-bottom:.7rem;
+}
+.proj-tile:hover { border-color:var(--gold); background:rgba(240,180,41,.03); }
+.proj-tile-name { font-family:var(--raj); font-size:.95rem; font-weight:700; color:var(--text); }
+.proj-tile-meta { font-family:var(--raj); font-size:.65rem; letter-spacing:1px; color:var(--muted); margin-top:.25rem; }
+.sub-tile {
+  background:var(--surface); border:1px solid var(--border2); border-radius:10px;
+  padding:.95rem 1.1rem; margin-bottom:.7rem;
+  transition:border-color .2s;
+}
+.sub-tile:hover { border-color:rgba(14,165,233,.3); }
+.section-header {
+  font-family:var(--raj); font-size:.62rem; letter-spacing:3px; text-transform:uppercase;
+  color:var(--muted); margin-bottom:1rem;
+  display:flex; align-items:center; gap:.7rem;
+}
+.section-header::after { content:''; flex:1; height:1px; background:var(--border2); }
 </style>
-<div class="ph"><div class="ph-eye">⬡ Account</div><h1>{{ current_user.username }}</h1><p>{{ current_user.email }}</p></div>
+
+<div class="ph">
+  <div class="ph-eye">Account</div>
+  <h1>{{ current_user.username }}</h1>
+  <p><i class="bi bi-envelope me-1"></i>{{ current_user.email }}</p>
+</div>
+
 <div class="profile-grid">
   <div>
-    <div style="font-family:var(--mono);font-size:.63rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem;">My Projects ({{ my_projects|length }})</div>
+    <div class="section-header"><i class="bi bi-folder2-open" style="color:var(--gold)"></i> My Projects ({{ my_projects|length }})</div>
     {% for p in my_projects %}
-    <a href="/project/{{ p.id }}" class="proj-mini">
-      <div style="font-weight:700;font-size:.9rem;color:var(--text);">{{ p.name }}
-        <span class="badge {% if p.task_type=='regression' %}badge-reg{% else %}badge-blue{% endif %}" style="margin-left:.4rem;font-size:.55rem;">{{ p.task_type or 'cls' }}</span>
-        {% if p.test_path %}<span class="badge badge-green" style="margin-left:.3rem;font-size:.55rem;">🔒 test</span>{% endif %}
+    <a href="/project/{{ p.id }}" class="proj-tile">
+      <div class="proj-tile-name">
+        {{ p.name }}
+        <span class="cml-badge {% if p.task_type=='regression' %}badge-reg{% else %}badge-cls{% endif %} ms-1" style="font-size:.55rem">{{ p.task_type or 'cls' }}</span>
+        {% if p.test_path %}<span class="cml-badge badge-gold ms-1" style="font-size:.55rem"><i class="bi bi-lock-fill"></i></span>{% endif %}
       </div>
-      <div style="font-family:var(--mono);font-size:.65rem;color:var(--muted);margin-top:.2rem;">{{ p.submission_count }} submission{{ 's' if p.submission_count != 1 else '' }}</div>
+      <div class="proj-tile-meta"><i class="bi bi-box-seam me-1"></i>{{ p.submission_count }} submission{{ 's' if p.submission_count != 1 else '' }}</div>
     </a>
     {% else %}
-    <div style="color:var(--muted);font-size:.85rem;padding:1rem 0;">No projects yet. <a href="/projects/new" style="color:var(--accent2);">Create one.</a></div>
+    <p style="color:var(--text2);font-size:.88rem;padding:.5rem 0">No projects yet. <a href="/projects/new" style="color:var(--gold)">Create one.</a></p>
     {% endfor %}
-    <div style="margin-top:1rem;"><a href="/projects/new" class="btn btn-primary btn-sm">+ New Project</a></div>
+    <a href="/projects/new" class="cml-btn cml-btn-gold cml-btn-sm mt-2"><i class="bi bi-plus-lg"></i> New Project</a>
   </div>
+
   <div>
-    <div style="font-family:var(--mono);font-size:.63rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.9rem;">My Submissions ({{ my_submissions|length }})</div>
+    <div class="section-header"><i class="bi bi-send-check-fill" style="color:var(--blue2)"></i> My Submissions ({{ my_submissions|length }})</div>
     {% for s in my_submissions %}
-    <div class="sub-row">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;">
-        <a href="/project/{{ s.project_id }}" style="font-weight:700;font-size:.88rem;color:var(--text);text-decoration:none;">{{ s.project_name }}</a>
-        <span style="font-family:var(--mono);font-weight:700;color:var(--green);">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span>
+    <div class="sub-tile">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <a href="/project/{{ s.project_id }}" style="font-family:var(--raj);font-weight:700;font-size:.92rem;color:var(--text);text-decoration:none">{{ s.project_name }}</a>
+        <span style="font-family:var(--orb);font-weight:700;color:var(--green);font-size:.9rem">{{ "%.1f"|format(s.verified_accuracy*100) }}%</span>
       </div>
       <div class="metric-row">
-        {% if s.f1_score is not none %}<div class="metric">F1 <span>{{ s.f1_score }}</span></div>{% endif %}
-        {% if s.roc_auc is not none %}<div class="metric">ROC <span>{{ s.roc_auc }}</span></div>{% endif %}
-        {% if s.rmse is not none %}<div class="metric">RMSE <span>{{ s.rmse }}</span></div>{% endif %}
+        {% if s.f1_score is not none %}<span class="metric-pill">F1 <span>{{ s.f1_score }}</span></span>{% endif %}
+        {% if s.roc_auc is not none %}<span class="metric-pill">ROC <span>{{ s.roc_auc }}</span></span>{% endif %}
+        {% if s.rmse is not none %}<span class="metric-pill">RMSE <span>{{ s.rmse }}</span></span>{% endif %}
       </div>
-      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.4rem;">
-        <span style="font-family:var(--mono);font-size:.62rem;color:var(--muted);">Block #{{ s.block_index }}</span>
-        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">🔗 {% if s.eth_mode=='real' %}Sepolia{% else %}Mock{% endif %}</a>
-        <a href="/api/submission/{{ s.id }}/verify" target="_blank" class="eth-link" style="color:var(--muted);">API verify</a>
+      <div class="d-flex align-items-center gap-2 flex-wrap mt-2">
+        <span style="font-family:var(--orb);font-size:.6rem;color:var(--gold)">#{{ s.block_index }}</span>
+        <a href="{{ s.eth_tx_url }}" target="_blank" class="eth-link">
+          <i class="bi bi-box-arrow-up-right"></i> {% if s.eth_mode=='real' %}Sepolia{% else %}Mock{% endif %}
+        </a>
+        <a href="/api/submission/{{ s.id }}/verify" target="_blank" class="eth-link" style="color:var(--muted)">
+          <i class="bi bi-code-slash"></i> API
+        </a>
       </div>
       {% if s.model_card %}
-      <div style="margin-top:.5rem;font-size:.75rem;color:var(--muted);font-style:italic;">{{ s.model_card[:80] }}{% if s.model_card|length > 80 %}…{% endif %}</div>
+      <div style="margin-top:.5rem;font-size:.78rem;color:var(--muted);font-style:italic">{{ s.model_card[:80] }}{% if s.model_card|length > 80 %}…{% endif %}</div>
       {% endif %}
     </div>
     {% else %}
-    <div style="color:var(--muted);font-size:.85rem;padding:1rem 0;">No submissions yet.</div>
+    <p style="color:var(--text2);font-size:.88rem;padding:.5rem 0">No submissions yet. Browse projects to contribute.</p>
     {% endfor %}
   </div>
 </div>

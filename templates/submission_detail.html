@@ -1,35 +1,43 @@
 {% extends "base.html" %}
 {% block title %}ChainML — Submission #{{ sub.id }}{% endblock %}
 {% block content %}
-<div class="ph"><div class="ph-eye">⬡ Submission</div><h1>Block #{{ sub.block_index }}</h1>
-<p>{{ sub.project_name }} · by {{ sub.username }}</p></div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
-  <div class="card">
-    <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;">Scores</div>
-    <div style="font-family:var(--mono);font-size:2.5rem;font-weight:700;color:var(--green);margin-bottom:.5rem;">{{ "%.1f"|format(sub.verified_accuracy*100) }}%</div>
-    <div class="metric-row">
-      {% if sub.f1_score is not none %}<div class="metric">F1 <span>{{ sub.f1_score }}</span></div>{% endif %}
-      {% if sub.roc_auc is not none %}<div class="metric">ROC-AUC <span>{{ sub.roc_auc }}</span></div>{% endif %}
-      {% if sub.rmse is not none %}<div class="metric">RMSE <span>{{ sub.rmse }}</span></div>{% endif %}
-      {% if sub.r2_score is not none %}<div class="metric">R² <span>{{ sub.r2_score }}</span></div>{% endif %}
+<div class="ph">
+  <div class="ph-eye">Submission Detail</div>
+  <h1>Block #{{ sub.block_index }}</h1>
+  <p>{{ sub.project_name }} · submitted by <strong>{{ sub.username }}</strong></p>
+</div>
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="cml-card h-100">
+      <div style="font-family:var(--raj);font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem"><i class="bi bi-bar-chart-fill me-1"></i> Performance</div>
+      <div style="font-family:var(--orb);font-size:3rem;font-weight:700;color:var(--green);margin-bottom:.5rem">{{ "%.1f"|format(sub.verified_accuracy*100) }}%</div>
+      <div class="metric-row mb-3">
+        {% if sub.f1_score is not none %}<span class="metric-pill">F1 <span>{{ sub.f1_score }}</span></span>{% endif %}
+        {% if sub.roc_auc is not none %}<span class="metric-pill">ROC-AUC <span>{{ sub.roc_auc }}</span></span>{% endif %}
+        {% if sub.rmse is not none %}<span class="metric-pill">RMSE <span>{{ sub.rmse }}</span></span>{% endif %}
+        {% if sub.r2_score is not none %}<span class="metric-pill">R² <span>{{ sub.r2_score }}</span></span>{% endif %}
+      </div>
+      {% if sub.model_card %}
+      <div class="hash-lbl">Model Card</div>
+      <div style="background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:.8rem 1rem;font-size:.85rem;color:var(--text2);white-space:pre-wrap;margin-top:.3rem">{{ sub.model_card }}</div>
+      {% endif %}
     </div>
-    {% if sub.model_card %}
-    <div class="hash-lbl">Model Card</div>
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:.7rem;font-size:.82rem;color:var(--muted);white-space:pre-wrap;margin-top:.3rem;">{{ sub.model_card }}</div>
-    {% endif %}
   </div>
-  <div class="card">
-    <div style="font-family:var(--mono);font-size:.62rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem;">Blockchain Record</div>
-    <div class="hash-lbl">Model SHA-256</div><div class="hash">{{ sub.model_hash }}</div>
-    <div class="hash-lbl">Combined Block Hash</div><div class="hash">{{ sub.combined_hash }}</div>
-    <div class="hash-lbl">Previous Hash</div><div class="hash">{{ sub.previous_hash }}</div>
-    <div style="margin-top:1rem;">
-      <a href="{{ sub.eth_tx_url }}" target="_blank" class="eth-link" style="display:block;justify-content:center;">
-        🔗 {% if sub.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan (mock){% endif %}
-      </a>
-    </div>
-    <div style="margin-top:.6rem;">
-      <a href="/api/submission/{{ sub.id }}/verify" target="_blank" class="eth-link" style="display:block;justify-content:center;color:var(--muted);">📡 API Verify Endpoint</a>
+  <div class="col-md-6">
+    <div class="cml-card h-100">
+      <div style="font-family:var(--raj);font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:1rem"><i class="bi bi-link-45deg me-1"></i> Blockchain Record</div>
+      <div class="hash-lbl">Model SHA-256</div><div class="hash-box">{{ sub.model_hash }}</div>
+      <div class="hash-lbl">Combined Block Hash</div><div class="hash-box">{{ sub.combined_hash }}</div>
+      <div class="hash-lbl">Previous Block Hash</div><div class="hash-box">{{ sub.previous_hash }}</div>
+      <div class="mt-3 d-flex flex-column gap-2">
+        <a href="{{ sub.eth_tx_url }}" target="_blank" class="eth-link justify-content-center">
+          <i class="bi bi-box-arrow-up-right"></i>
+          {% if sub.eth_mode=='real' %}View on Etherscan (Sepolia){% else %}Etherscan (mock){% endif %}
+        </a>
+        <a href="/api/submission/{{ sub.id }}/verify" target="_blank" class="eth-link justify-content-center" style="color:var(--muted)">
+          <i class="bi bi-code-slash"></i> API Verify Endpoint
+        </a>
+      </div>
     </div>
   </div>
 </div>

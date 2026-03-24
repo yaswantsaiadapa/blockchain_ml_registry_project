@@ -1,30 +1,44 @@
 {% extends "base.html" %}
 {% block title %}ChainML — New Project{% endblock %}
 {% block content %}
-<div style="max-width:580px;">
-  <div class="ph"><div class="ph-eye">⬡ Create</div><h1>New Project</h1>
-  <p>Upload a preprocessed CSV. Others download it and submit trained models.</p></div>
-  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
-  <div class="card">
+<div style="max-width:620px;">
+  <div class="ph"><div class="ph-eye">Create</div><h1>New Project</h1>
+  <p>Upload a preprocessed CSV dataset. Contributors download it and submit trained models.</p></div>
+  {% if error %}<div class="cml-alert cml-alert-error"><i class="bi bi-exclamation-triangle-fill"></i>{{ error }}</div>{% endif %}
+  <div class="cml-card">
     <form method="POST" enctype="multipart/form-data">
-      <div class="fg"><label>Project Name</label>
-        <input class="input" type="text" name="name" placeholder="e.g. Iris Classifier, House Price Predictor" required autofocus></div>
-      <div class="fg"><label>Description</label>
-        <textarea class="input" name="description" placeholder="Describe the problem, dataset columns, and goal..."></textarea></div>
-      <div class="fg"><label>Task Type</label>
-        <select class="input" name="task_type">
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-folder2-open me-1"></i>Project Name</label>
+        <input class="cml-input" type="text" name="name" placeholder="e.g. Iris Classifier, House Price Predictor" required autofocus>
+      </div>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-card-text me-1"></i>Description</label>
+        <textarea class="cml-input" name="description" placeholder="Describe the problem, dataset columns, and goal..."></textarea>
+      </div>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-cpu me-1"></i>Task Type</label>
+        <select class="cml-input" name="task_type">
           <option value="classification">Classification — predict a category (accuracy, F1, ROC-AUC)</option>
           <option value="regression">Regression — predict a number (RMSE, R²)</option>
-        </select></div>
-      <div class="fg"><label>Training Dataset (CSV) *</label>
-        <input class="input" type="file" name="dataset" accept=".csv" required>
-        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">Last column must be the target. No missing values. Max 50MB.</p></div>
-      <div class="fg"><label>Hidden Test Set (CSV) — optional but recommended</label>
-        <input class="input" type="file" name="test_dataset" accept=".csv">
-        <p style="font-size:.72rem;color:var(--muted);margin-top:.4rem;">🔒 Contributors never see this file. Models are evaluated on it secretly. Same columns as training set.</p></div>
-      <div style="display:flex;gap:.8rem;margin-top:.5rem;">
-        <button type="submit" class="btn btn-primary">Create Project</button>
-        <a href="/" class="btn btn-ghost">Cancel</a>
+        </select>
+      </div>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-table me-1"></i>Training Dataset (CSV) *</label>
+        <input class="cml-input" type="file" name="dataset" accept=".csv" required>
+        <small style="color:var(--muted);display:block;margin-top:.4rem;font-size:.75rem">
+          <i class="bi bi-info-circle me-1"></i>Last column must be the target. No missing values. Max 50MB.
+        </small>
+      </div>
+      <div class="cml-fg">
+        <label class="cml-label"><i class="bi bi-lock-fill me-1" style="color:var(--gold)"></i>Hidden Test Set (CSV) — optional</label>
+        <input class="cml-input" type="file" name="test_dataset" accept=".csv">
+        <small style="color:var(--gold);display:block;margin-top:.4rem;font-size:.75rem;opacity:.8">
+          <i class="bi bi-eye-slash me-1"></i>Contributors never see this. Models evaluated on it secretly. Same columns as training set.
+        </small>
+      </div>
+      <div class="d-flex gap-3 mt-2">
+        <button type="submit" class="cml-btn cml-btn-primary"><i class="bi bi-plus-circle-fill"></i> Create Project</button>
+        <a href="/" class="cml-btn cml-btn-ghost"><i class="bi bi-x-lg"></i> Cancel</a>
       </div>
     </form>
   </div>
